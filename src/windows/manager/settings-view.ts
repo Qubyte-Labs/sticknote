@@ -12,6 +12,12 @@ const GLOBAL_KEYS: [string, string][] = [
   ["Ctrl + Alt + A", "All notes"],
   ["Ctrl + Alt + L", "Archive"],
 ];
+const WINDOW_KEYS: [string, string][] = [
+  ["Ctrl + N", "New note"],
+  ["Ctrl + F", "Search"],
+  ["Ctrl + E", "Open the selected note in its own window"],
+  ["Ctrl + \\", "Collapse or expand the sidebar"],
+];
 const NOTE_KEYS: [string, string][] = [
   ["Esc", "Close a note window"],
   ["Ctrl + .", "Cycle a note's colour"],
@@ -53,6 +59,8 @@ function shortcutsCard(): HTMLElement {
   const body = h("div", { class: "keys-body", hidden: true },
     h("div", { class: "keys-heading t-caps" }, "Anywhere"),
     keys(GLOBAL_KEYS),
+    h("div", { class: "keys-heading t-caps" }, "In All notes"),
+    keys(WINDOW_KEYS),
     h("div", { class: "keys-heading t-caps" }, "In a note"),
     keys(NOTE_KEYS),
   );

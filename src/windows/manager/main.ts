@@ -10,7 +10,7 @@ import { toast, closeToast } from "../../components/toast";
 import { closeMenu } from "../../components/menu";
 import { state, subscribe, update, isListView, visibleNotes } from "./state";
 import { actions, hooks } from "./actions";
-import { titlebar } from "./titlebar";
+import { topbar } from "./titlebar";
 import { sidebar } from "./sidebar";
 import { listPanel } from "./list";
 import { detailPane } from "./detail";
@@ -25,7 +25,9 @@ const settings = settingsView();
 const about = aboutView();
 const notesArea = h("div", { class: "notes-area" }, list, detail);
 const content = h("main", { class: "content" }, notesArea, settings, about);
-document.getElementById("app")!.append(titlebar(), h("div", { class: "body" }, sidebar(), content));
+const nav = sidebar();
+// Layout: full-height sidebar | main (draggable top bar + current view).
+document.getElementById("app")!.append(nav, h("div", { class: "main" }, topbar(), content));
 
 function route() {
   notesArea.hidden = !isListView(state.view);
@@ -98,6 +100,9 @@ window.addEventListener("keydown", (e) => {
   } else if (matchKey(e, "Ctrl+E") && sel) {
     e.preventDefault();
     void actions.openWindow(sel);
+  } else if (matchKey(e, "Ctrl+\\")) {
+    e.preventDefault();
+    nav.toggle();
   } else if (matchKey(e, "Ctrl+,")) {
     e.preventDefault();
     update({ view: "settings" });

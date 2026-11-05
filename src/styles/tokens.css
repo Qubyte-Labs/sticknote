@@ -94,63 +94,72 @@
 
   /* ---- Light theme (default) ------------------------------------------- */
   color-scheme: light;
-  /* "Sky & Cloud": sky-blue accent, white surfaces, cool grays — matches the app icon. */
-  --bg: #f5f7fa;
+  /* Light: white canvas, a soft neutral sidebar, crisp grays, sky-blue accent. */
+  --bg: #f5f6f8;
+  --sidebar: #ffffff;
   --surface: #ffffff;
-  --surface-2: #eef2f6;
-  --surface-hover: rgba(31, 43, 56, 0.045);
-  --border: #e2e8ef;
-  --border-strong: #cfd8e1;
-  --text: #1f2b38;
-  --text-muted: #6b7887;
-  --text-faint: #9aa6b2;
+  --surface-2: #eceff3;
+  --surface-hover: rgba(17, 24, 39, 0.045);
+  --surface-active: rgba(17, 24, 39, 0.07);
+  --border: #e8ebef;
+  --border-strong: #d6dbe1;
+  --text: #111418;
+  --text-muted: #5f6b7a;
+  --text-faint: #98a2b0;
   --accent: #2f8fd6;
   --accent-hover: #2479bc;
-  --accent-soft: rgba(79, 168, 232, 0.14);
-  --accent-border: rgba(47, 143, 214, 0.55);
+  --accent-soft: rgba(47, 143, 214, 0.1);
+  --accent-border: rgba(47, 143, 214, 0.45);
   --accent-text: #1f78bf;
-  --accent-glow: rgba(79, 168, 232, 0.28);
+  --accent-glow: rgba(47, 143, 214, 0.28);
   --on-accent: #ffffff;
-  --danger: #d0453b;
-  --danger-soft: rgba(208, 69, 59, 0.1);
-  --focus: rgba(79, 168, 232, 0.5);
-  --scrim: rgba(14, 30, 48, 0.25);
+  --danger: #d33f35;
+  --danger-soft: rgba(211, 63, 53, 0.09);
+  --focus: rgba(47, 143, 214, 0.45);
+  --scrim: rgba(0, 0, 0, 0.25);
   --kbd-bg: #ffffff;
+  --toast-bg: #111418;
+  --toast-fg: #f4f5f7;
 
-  --shadow-sm: 0 1px 2px rgba(14, 40, 70, 0.06);
-  --shadow-md: 0 4px 16px rgba(14, 40, 70, 0.1), 0 1px 3px rgba(14, 40, 70, 0.06);
-  --shadow-lg: 0 12px 36px rgba(14, 40, 70, 0.18), 0 2px 8px rgba(14, 40, 70, 0.08);
-  --shadow-note: 0 6px 20px rgba(14, 40, 70, 0.22), 0 1px 3px rgba(14, 40, 70, 0.12);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06);
+  --shadow-md: 0 6px 20px rgba(17, 24, 39, 0.08), 0 1px 3px rgba(17, 24, 39, 0.06);
+  --shadow-lg: 0 16px 40px rgba(17, 24, 39, 0.16), 0 2px 8px rgba(17, 24, 39, 0.08);
+  --shadow-note: 0 8px 24px rgba(17, 24, 39, 0.18), 0 1px 3px rgba(17, 24, 39, 0.1);
 }
 
 :root[data-theme="dark"] {
+  /* Dark: true black with neutral (untinted) grays and the same sky accent. */
   color-scheme: dark;
-  --bg: #161b22;
-  --surface: #1d242d;
-  --surface-2: #252e39;
-  --surface-hover: rgba(255, 255, 255, 0.05);
-  --border: rgba(214, 228, 242, 0.09);
-  --border-strong: rgba(214, 228, 242, 0.16);
-  --text: #e8eef4;
-  --text-muted: #9aa7b4;
-  --text-faint: #6a7683;
-  --accent: #3b9bdd;
+  --bg: #000000;
+  --sidebar: #0e0e10;
+  --surface: #111113;
+  --surface-2: #18181b;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-active: rgba(255, 255, 255, 0.09);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-faint: #63636b;
+  --accent: #3d9de0;
   --accent-hover: #5ab0e6;
-  --accent-soft: rgba(92, 179, 238, 0.18);
-  --accent-border: rgba(92, 179, 238, 0.7);
+  --accent-soft: rgba(79, 168, 232, 0.16);
+  --accent-border: rgba(79, 168, 232, 0.6);
   --accent-text: #7cc4f2;
-  --accent-glow: rgba(92, 179, 238, 0.3);
+  --accent-glow: rgba(79, 168, 232, 0.3);
   --on-accent: #ffffff;
-  --danger: #ef6b61;
-  --danger-soft: rgba(239, 107, 97, 0.14);
-  --focus: rgba(92, 179, 238, 0.55);
-  --scrim: rgba(0, 0, 0, 0.45);
-  --kbd-bg: #252e39;
+  --danger: #f0665c;
+  --danger-soft: rgba(240, 102, 92, 0.14);
+  --focus: rgba(79, 168, 232, 0.55);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --kbd-bg: #18181b;
+  --toast-bg: #1c1c1f;
+  --toast-fg: #f4f4f5;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.5);
-  --shadow-note: 0 6px 22px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-note: 0 8px 26px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* Map a note's colour index to local variables. Any element with

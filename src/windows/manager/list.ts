@@ -48,7 +48,7 @@ export function listPanel() {
   const list = h("div", { class: "list", role: "listbox", tabindex: 0, "aria-label": "Notes" });
   const el = h(
     "section",
-    { class: "panel list-panel" },
+    { class: "list-panel" },
     h("div", { class: "panel-head" }, heading, h("div", { class: "panel-tools" }, sortBtn, ioBtn)),
     searchField,
     bulk,
@@ -232,6 +232,7 @@ export function listPanel() {
 
     const n = state.checked.size;
     bulk.hidden = n === 0;
+    list.classList.toggle("selecting", n > 0); // keep checkboxes visible while selecting
     bulkLabel.textContent = `${n} selected`;
     bulkArchive.textContent = view === "archive" ? "Restore" : "Archive";
     bulkArchive.onclick = () =>

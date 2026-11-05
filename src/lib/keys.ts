@@ -13,6 +13,7 @@ export function matchKey(e: KeyboardEvent, combo: string): boolean {
   if (key === "8") return k === "8" || k === "*" || e.code === "Digit8";
   if (key === "7") return k === "7" || k === "&" || e.code === "Digit7";
   if (key === "backspace") return k === "backspace";
+  if (key === "\\") return k === "\\" || e.code === "Backslash";
   if (key === "esc") return k === "escape";
   return k === key || e.code.toLowerCase() === `key${key}`;
 }

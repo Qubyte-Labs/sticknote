@@ -245,13 +245,13 @@ kbd {
 }
 /* Dark menus used inside note windows (always dark, like a tooltip). */
 .menu-dark {
-  background: #26252d;
+  background: var(--toast-bg);
   border-color: rgba(255, 255, 255, 0.06);
-  color: #f2f2f6;
+  color: var(--toast-fg);
   min-width: 190px;
 }
 .menu-dark .menu-item {
-  color: #f2f2f6;
+  color: var(--toast-fg);
   height: 34px;
 }
 .menu-dark .menu-item .icon,
@@ -297,8 +297,8 @@ kbd {
   min-width: 260px;
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
-  background: #26252d;
-  color: #f2f2f6;
+  background: var(--toast-bg);
+  color: var(--toast-fg);
   box-shadow: var(--shadow-lg);
   font-size: var(--text-md);
   pointer-events: auto;
@@ -342,7 +342,7 @@ kbd {
   animation: toast-progress linear forwards;
 }
 .toast.error {
-  background: #3a1f22;
+  background: #4a1d1a;
 }
 @keyframes toast-in {
   from {
