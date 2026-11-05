@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-deck-resize"
+description = "Enables the deck_resize command without any pre-configured scope."
+commands.allow = ["deck_resize"]
+
+[[permission]]
+identifier = "deny-deck-resize"
+description = "Denies the deck_resize command without any pre-configured scope."
+commands.deny = ["deck_resize"]

@@ -1,0 +1,397 @@
+@import "../../styles/base.css";
+
+/* ==========================================================================
+   The deck
+   Resting:  a slim column of coloured pills just off the screen edge.
+   Hover:    the pills grow into leaning tabs (animated).
+   Hover a tab: that tab grows out of the edge into a preview of the note;
+             the other tabs tuck closer so nothing is covered.
+   main.ts sizes the window from these variables — tweak geometry here.
+   ========================================================================== */
+:root {
+  --deck-tab-w: 30px; /* visible width of a tab */
+  --deck-overhang: 12px; /* tabs extend past the screen edge so tilting never shows a gap */
+  --deck-pill-w: 7px;
+  --deck-pill-h: 24px;
+  --deck-pill-gap: 8px; /* vertical space between pills */
+  --deck-pill-inset: 6px; /* distance of the pills from the screen edge */
+  --deck-peek-w: 280px; /* visible width of an open tab */
+  --deck-peek-min-h: 190px;
+  --deck-peek-max-h: 300px;
+  --deck-gutter: 10px;
+  --deck-anim: 380ms; /* open / close / switch (main.ts ANIM_MS) */
+  --deck-ease: cubic-bezier(0.22, 1, 0.36, 1); /* fast start, soft landing */
+}
+
+html,
+body {
+  background: transparent;
+}
+
+.deck {
+  position: fixed;
+  inset: 0;
+}
+
+/* Column of tabs + "+", vertically centred and pinned to the edge. */
+.column {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  padding: var(--deck-gutter) 0;
+  transition: right var(--deck-anim) var(--deck-ease), left var(--deck-anim) var(--deck-ease);
+}
+.deck[data-edge="right"] .column {
+  right: 0;
+  align-items: flex-end;
+}
+.deck[data-edge="left"] .column {
+  left: 0;
+  align-items: flex-start;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+}
+
+/* ---- Tabs ------------------------------------------------------------------ */
+.tab {
+  --w: var(--deck-tab-w);
+  position: relative;
+  width: calc(var(--w) + var(--deck-overhang));
+  height: var(--tab-h, 76px);
+  margin-block: -3px;
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden;
+  background: var(--note-bg);
+  color: var(--note-ink);
+  cursor: pointer;
+  touch-action: none;
+  transition: width var(--deck-anim) var(--deck-ease), height var(--deck-anim) var(--deck-ease),
+    margin var(--deck-anim) var(--deck-ease), border-radius var(--deck-anim) var(--deck-ease),
+    transform var(--deck-anim) var(--deck-ease), box-shadow 240ms var(--ease-in-out);
+}
+.deck[data-edge="right"] .tab {
+  flex-direction: row; /* strip on the outer side, note revealed toward the edge */
+  margin-right: calc(var(--deck-overhang) * -1);
+  border-radius: 11px 0 0 11px;
+  box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transform: translateX(var(--lean, 0px)) rotate(var(--tilt, 0deg));
+  transform-origin: right center;
+}
+.deck[data-edge="left"] .tab {
+  flex-direction: row-reverse;
+  margin-left: calc(var(--deck-overhang) * -1);
+  border-radius: 0 11px 11px 0;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transform: translateX(calc(var(--lean, 0px) * -1)) rotate(calc(var(--tilt, 0deg) * -1));
+  transform-origin: left center;
+}
+
+/* Leaning like a fanned deck of cards. */
+.tab:nth-child(3n + 1) { --lean: 0px; --tilt: 0deg; }
+.tab:nth-child(3n + 2) { --lean: -2px; --tilt: -1.4deg; }
+.tab:nth-child(3n + 3) { --lean: -4px; --tilt: 1deg; }
+
+/* Hover pulls a tab out a little. */
+.tab:hover {
+  --w: calc(var(--deck-tab-w) + 5px);
+  z-index: 2;
+}
+
+/* No animation for layout restores and drags. */
+.deck.instant .tab,
+.deck.instant .column,
+.tab.no-anim {
+  transition: none !important;
+}
+
+.tab-strip {
+  flex: none;
+  width: var(--deck-tab-w);
+  height: var(--tab-h, 76px);
+  display: grid;
+  place-items: center;
+  transition: height var(--deck-anim) var(--deck-ease), background 240ms, opacity 160ms;
+}
+.tab-label {
+  writing-mode: vertical-rl;
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--note-ink-muted);
+  max-height: calc(var(--tab-h, 76px) - 18px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.deck[data-edge="right"] .tab-label {
+  transform: rotate(180deg);
+}
+
+/* A tab whose note window is open shows an inner marker. */
+.tab.active::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--note-strong);
+  transition: opacity 160ms;
+}
+.deck[data-edge="right"] .tab.active::after {
+  left: 4px;
+}
+.deck[data-edge="left"] .tab.active::after {
+  right: 4px;
+}
+
+/* ---- Open tab: the note preview -------------------------------------------- */
+.stack.has-open .tab:not(.open) {
+  margin-block: -7px;
+}
+.tab.open {
+  --w: var(--deck-peek-w);
+  --lean: 0px;
+  --tilt: 0deg;
+  z-index: 3;
+  height: var(--open-h);
+  margin-block: 8px;
+}
+.deck[data-edge="right"] .tab.open {
+  border-radius: 14px 0 0 14px;
+  box-shadow: -6px 8px 26px rgba(0, 0, 0, 0.32), -1px 1px 4px rgba(0, 0, 0, 0.12);
+}
+.deck[data-edge="left"] .tab.open {
+  border-radius: 0 14px 14px 0;
+  box-shadow: 6px 8px 26px rgba(0, 0, 0, 0.32), 1px 1px 4px rgba(0, 0, 0, 0.12);
+}
+.tab.open .tab-strip {
+  height: var(--open-h);
+  background: rgba(0, 0, 0, 0.05);
+}
+.tab.open::after {
+  opacity: 0;
+}
+
+.tab-content {
+  flex: none;
+  width: calc(var(--deck-peek-w) - var(--deck-tab-w));
+  max-height: var(--deck-peek-max-h);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-3);
+}
+.deck[data-edge="left"] .tab-content {
+  padding: var(--space-4) var(--space-3) var(--space-3) var(--space-4);
+}
+
+/* Content arrives in a short stagger (title → body → footer) and leaves
+   quickly, so switching tabs reads as one fluid motion. */
+.tab-content > * {
+  opacity: 0;
+  transform: translateX(14px);
+  transition: opacity 120ms var(--ease-in-out), transform 120ms var(--ease-in-out);
+}
+.deck[data-edge="left"] .tab-content > * {
+  transform: translateX(-14px);
+}
+.tab.open .tab-content > * {
+  opacity: 1;
+  transform: none;
+  transition: opacity 260ms var(--ease-in-out), transform var(--deck-anim) var(--deck-ease);
+}
+.tab.open .tab-content > :nth-child(1) { transition-delay: 90ms; }
+.tab.open .tab-content > :nth-child(2) { transition-delay: 140ms; }
+.tab.open .tab-content > :nth-child(3) { transition-delay: 190ms; }
+
+.peek-title {
+  font-family: var(--font-ui);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-1);
+}
+.peek-body {
+  flex: 1;
+  min-height: 48px;
+  overflow: hidden;
+  font-size: calc(var(--peek-body-size) * var(--note-font-scale, 1));
+  line-height: 1.35;
+  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent);
+  mask-image: linear-gradient(to bottom, #000 80%, transparent);
+}
+.peek-body:empty::before {
+  content: "Empty note";
+  color: var(--note-ink-muted);
+}
+.peek-foot {
+  margin-top: var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--note-ink-muted);
+  white-space: nowrap;
+}
+
+/* ---- Resting state: pills ------------------------------------------------------
+   All pills in one straight column, an equal distance from the edge. The
+   tab → pill change animates both ways. */
+.deck.compact .tab {
+  --w: var(--deck-pill-w);
+  width: var(--deck-pill-w);
+  height: var(--deck-pill-h);
+  margin: calc(var(--deck-pill-gap) / 2) 0 !important;
+  border-radius: var(--radius-pill) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28) !important;
+  transform: none;
+}
+.deck[data-edge="right"].compact .column {
+  right: var(--deck-pill-inset);
+}
+.deck[data-edge="left"].compact .column {
+  left: var(--deck-pill-inset);
+}
+.deck.compact .tab-strip,
+.deck.compact .tab-content {
+  opacity: 0;
+}
+.deck.compact .tab.active {
+  box-shadow: 0 0 0 1.5px var(--note-strong), 0 1px 3px rgba(0, 0, 0, 0.28) !important;
+}
+.deck.compact .tab.active::after {
+  opacity: 0;
+}
+
+/* ---- Drag & drop ------------------------------------------------------------ */
+.tab.floating {
+  position: absolute;
+  z-index: 10;
+  margin: 0;
+  transition: none;
+}
+.deck[data-edge="right"] .tab.floating {
+  right: 0;
+  box-shadow: -4px 10px 24px rgba(0, 0, 0, 0.3);
+}
+.deck[data-edge="left"] .tab.floating {
+  left: 0;
+  box-shadow: 4px 10px 24px rgba(0, 0, 0, 0.3);
+}
+.slot {
+  width: calc(var(--deck-tab-w) + var(--deck-overhang));
+  margin: 0;
+  border: 2px dashed rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.18);
+}
+.deck[data-edge="right"] .slot {
+  margin-right: calc(var(--deck-overhang) * -1);
+  border-right: 0;
+  border-radius: 11px 0 0 11px;
+}
+.deck[data-edge="left"] .slot {
+  margin-left: calc(var(--deck-overhang) * -1);
+  border-left: 0;
+  border-radius: 0 11px 11px 0;
+}
+
+/* ---- "+" and overflow chip ------------------------------------------------- */
+.plus {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 14px 2px 0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2b2a33;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform var(--dur-fast) var(--ease-out), opacity 200ms, height var(--deck-anim) var(--deck-ease),
+    margin var(--deck-anim) var(--deck-ease);
+}
+.plus:hover {
+  transform: scale(1.1);
+}
+:root[data-theme="dark"] .plus {
+  background: #2c2c34;
+  color: #f2f2f6;
+}
+.more {
+  margin-top: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(30, 30, 36, 0.85);
+  color: #fff;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+}
+.deck.compact .plus {
+  height: 0;
+  margin: 0 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+.deck.compact .more {
+  display: none;
+}
+
+/* ---- Undo toast -------------------------------------------------------------- */
+.deck-toast {
+  position: absolute;
+  bottom: var(--deck-gutter);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 240px;
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--radius-lg);
+  background: #26252d;
+  color: #f2f2f6;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: toast-in var(--dur-slow) var(--ease-out);
+}
+.deck[data-edge="right"] .deck-toast {
+  right: calc(var(--deck-tab-w) + 16px);
+}
+.deck[data-edge="left"] .deck-toast {
+  left: calc(var(--deck-tab-w) + 16px);
+}
+.deck-toast span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.deck-toast button {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-weight: var(--weight-semibold);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --deck-anim: 1ms;
+  }
+  .tab-content > * {
+    transition-delay: 0ms !important;
+  }
+}

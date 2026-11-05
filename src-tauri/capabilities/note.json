@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "note",
+  "description": "A single note window: edit its own note, recolour, archive, delete.",
+  "windows": ["note-*"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-start-dragging",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "allow-set-font",
+    "allow-get-note",
+    "allow-update-note",
+    "allow-set-color",
+    "allow-cycle-color",
+    "allow-set-status",
+    "allow-set-on-deck",
+    "allow-delete-notes",
+    "allow-undo-delete",
+    "allow-close-self",
+    "allow-note-ready",
+    "allow-get-settings",
+    "allow-open-link",
+    "allow-open-manager"
+  ]
+}

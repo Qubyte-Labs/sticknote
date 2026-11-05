@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-on-deck"
+description = "Enables the set_on_deck command without any pre-configured scope."
+commands.allow = ["set_on_deck"]
+
+[[permission]]
+identifier = "deny-set-on-deck"
+description = "Denies the set_on_deck command without any pre-configured scope."
+commands.deny = ["set_on_deck"]

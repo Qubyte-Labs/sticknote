@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cycle-color"
+description = "Enables the cycle_color command without any pre-configured scope."
+commands.allow = ["cycle_color"]
+
+[[permission]]
+identifier = "deny-cycle-color"
+description = "Denies the cycle_color command without any pre-configured scope."
+commands.deny = ["cycle_color"]

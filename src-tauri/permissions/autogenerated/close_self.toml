@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-self"
+description = "Enables the close_self command without any pre-configured scope."
+commands.allow = ["close_self"]
+
+[[permission]]
+identifier = "deny-close-self"
+description = "Denies the close_self command without any pre-configured scope."
+commands.deny = ["close_self"]

@@ -1,0 +1,428 @@
+/* Reusable UI components shared by the manager and note windows. */
+
+/* ---- Buttons ------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--surface-2);
+}
+.btn:active {
+  transform: translateY(0.5px);
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+  box-shadow: 0 1px 2px rgba(60, 40, 180, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn-ghost:hover {
+  background: var(--surface-hover);
+}
+.btn-danger {
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: var(--danger-soft);
+}
+.btn-sm {
+  height: 28px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.icon-btn.danger {
+  color: var(--danger);
+}
+.icon-btn.danger:hover {
+  background: var(--danger-soft);
+}
+.icon-btn[aria-pressed="true"] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ---- Inputs ------------------------------------------------------------- */
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 34px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.field:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-md);
+}
+.field input::placeholder {
+  color: var(--text-faint);
+}
+
+/* ---- Toggle switch ------------------------------------------------------ */
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  transition: background var(--dur-med) var(--ease-out);
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-med) var(--ease-out);
+}
+.toggle[aria-checked="true"] {
+  background: var(--accent);
+}
+.toggle[aria-checked="true"]::after {
+  transform: translateX(18px);
+}
+
+/* ---- Segmented control -------------------------------------------------- */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.segmented button {
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.segmented button:hover {
+  color: var(--text);
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---- Keyboard keys ------------------------------------------------------ */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--kbd-bg);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---- Colour swatches ---------------------------------------------------- */
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--note-bg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.swatch:hover {
+  transform: scale(1.15);
+}
+.swatch[aria-checked="true"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--note-strong);
+}
+.on-note .swatch[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--note-ink);
+}
+
+/* ---- Popover menu ------------------------------------------------------- */
+.menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 200px;
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: pop-in var(--dur-med) var(--ease-out);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  text-align: left;
+  color: var(--text);
+}
+.menu-item[data-font] .truncate {
+  font-family: var(--note-font);
+  font-size: var(--text-lg);
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+.menu-item .icon {
+  color: var(--text-muted);
+}
+.menu-item .check {
+  margin-left: auto;
+  color: var(--accent-text);
+}
+/* Dark menus used inside note windows (always dark, like a tooltip). */
+.menu-dark {
+  background: #26252d;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #f2f2f6;
+  min-width: 190px;
+}
+.menu-dark .menu-item {
+  color: #f2f2f6;
+  height: 34px;
+}
+.menu-dark .menu-item .icon,
+.menu-dark .menu-item .check {
+  color: rgba(242, 242, 246, 0.7);
+}
+.menu-dark .menu-item:hover,
+.menu-dark .menu-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+.menu-sep {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  background: var(--border);
+}
+.menu-label {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* ---- Toast -------------------------------------------------------------- */
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-5);
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 260px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: #26252d;
+  color: #f2f2f6;
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-md);
+  pointer-events: auto;
+  animation: toast-in var(--dur-slow) var(--ease-out);
+  overflow: hidden;
+  position: relative;
+}
+.toast .msg {
+  flex: 1;
+  min-width: 0;
+}
+.toast .btn {
+  height: 28px;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+  color: #fff;
+}
+.toast .btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.toast .progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: toast-progress linear forwards;
+}
+.toast.error {
+  background: #3a1f22;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes toast-progress {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---- Formatting toolbar (on note paper) --------------------------------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--note-ink);
+}
+.tb-btn {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  color: var(--note-ink);
+  opacity: 0.72;
+  transition: background var(--dur-fast), opacity var(--dur-fast);
+}
+.tb-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.07);
+}
+.tb-btn[aria-pressed="true"] {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+}
+.tb-glyph {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1;
+}
+.tb-b {
+  font-weight: var(--weight-bold);
+}
+.tb-i {
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.tb-u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tb-s {
+  text-decoration: line-through;
+}
+.tb-aa {
+  font-size: var(--text-sm);
+}
+.tb-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 5px;
+  background: var(--note-ink-faint);
+}
+.tb-grow {
+  flex: 1;
+}
+
+/* ---- Inline link editor (Ctrl+K) ---------------------------------------- */
+.link-pop {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-ui);
+  animation: pop-in var(--dur-med) var(--ease-out);
+}
+.link-pop input {
+  width: 220px;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
