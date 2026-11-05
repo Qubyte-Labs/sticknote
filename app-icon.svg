@@ -1,55 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Peekin app icon (master). Regenerate every platform's icons with:
-       npx tauri icon app-icon.svg -o src-tauri/icons -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8676F7"/>
-      <stop offset="1" stop-color="#5A45D9"/>
-    </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
-      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFEDA6"/>
-      <stop offset="1" stop-color="#FCDD78"/>
-    </linearGradient>
-    <clipPath id="tile">
-      <rect x="100" y="100" width="824" height="824" rx="190"/>
-    </clipPath>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1E1150" flood-opacity="0.35"/>
-    </filter>
-    <filter id="tabShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="-6" dy="8" stdDeviation="10" flood-color="#1E1150" flood-opacity="0.28"/>
-    </filter>
+    <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8F5FE"/><stop offset="1" stop-color="#BFE3FA"/></linearGradient>
+    <clipPath id="tile4"><rect x="100" y="100" width="824" height="824" rx="190"/></clipPath><filter id="sh4" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0E3A5C" flood-opacity="0.22"/></filter>
   </defs>
-
-  <!-- tile -->
-  <rect x="100" y="100" width="824" height="824" rx="190" fill="url(#bg)"/>
-
-  <g clip-path="url(#tile)">
-    <!-- the deck: three tabs peeking in from the right edge -->
-    <g filter="url(#tabShadow)">
-      <rect x="760" y="250" width="220" height="150" rx="40" fill="#C4DCF8" transform="rotate(-4 760 325)"/>
-      <rect x="742" y="420" width="240" height="150" rx="40" fill="#BDE8D2" transform="rotate(3 742 495)"/>
-      <rect x="768" y="590" width="220" height="150" rx="40" fill="#F9C9D6" transform="rotate(-3 768 665)"/>
-    </g>
-    <!-- soft top sheen -->
-    <rect x="100" y="100" width="824" height="824" fill="url(#sheen)"/>
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="url(#g4)"/>
+  <g clip-path="url(#tile4)" filter="url(#sh4)">
+    <rect x="520" y="230" width="520" height="300" rx="50" fill="#C9D3DD"/>
+    <rect x="420" y="360" width="620" height="300" rx="50" fill="#4FA8E8"/>
+    <path d="M340 490 h660 a40 40 0 0 1 40 40 v170 l-90 90 h-610 a40 40 0 0 1 -40 -40 v-220 a40 40 0 0 1 40 -40 z" fill="#FFFFFF"/>
+    <path d="M1040 700 l-90 90 v-54 a40 40 0 0 1 40 -36 z" fill="#EEF2F6"/>
   </g>
-
-  <!-- main sticky note, slightly tilted, with a folded corner -->
-  <g transform="rotate(-6 450 520)" filter="url(#shadow)">
-    <path d="M250 300 h360 a40 40 0 0 1 40 40 v280 l-110 110 h-290 a40 40 0 0 1 -40 -40 v-350 a40 40 0 0 1 40 -40 z"
-          fill="url(#paper)"/>
-    <!-- folded corner -->
-    <path d="M650 620 l-110 110 v-70 a40 40 0 0 1 40 -40 z" fill="#E8C155"/>
-    <!-- handwriting lines -->
-    <g stroke="#9A7424" stroke-width="30" stroke-linecap="round" fill="none" opacity="0.75">
-      <path d="M298 410 q60 -16 120 0 t120 0"/>
-      <path d="M298 500 q55 -14 110 0 t100 0"/>
-      <path d="M298 590 h130"/>
-    </g>
-  </g>
+  <g stroke="#C9D3DD" stroke-width="26" stroke-linecap="round"><path d="M380 590 h280"/><path d="M380 665 h190"/></g>
 </svg>

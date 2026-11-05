@@ -443,7 +443,7 @@ body {
   background: var(--accent);
   color: #fff;
   transform: scale(1.15);
-  box-shadow: 0 4px 14px rgba(90, 70, 220, 0.5), 0 0 0 4px rgba(132, 115, 245, 0.25);
+  box-shadow: 0 4px 14px var(--accent-glow), 0 0 0 4px var(--accent-soft);
 }
 .plus:hover .icon {
   transform: rotate(90deg);
