@@ -99,9 +99,4 @@ export const actions = {
     const ok = await guard(api.exportNotes(format, ids));
     if (ok) toast("Export saved");
   },
-
-  async importNotes() {
-    const n = await guard(api.importNotes());
-    if (n) toast(`Imported ${n} note${n === 1 ? "" : "s"}`);
-  },
 };

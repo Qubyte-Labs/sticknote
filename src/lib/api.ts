@@ -48,8 +48,6 @@ export const api = {
   // io
   exportNotes: (format: "json" | "markdown", ids?: string[]) =>
     invoke<boolean>("export_notes", { format, ids }),
-  importNotes: () => invoke<number>("import_notes"),
-  openDataFolder: () => invoke<void>("open_data_folder"),
   openLink: (url: string) => invoke<void>("open_link", { url }),
 };
 

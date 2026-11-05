@@ -40,35 +40,6 @@ pub fn clean_html(input: &str) -> String {
     builder().clean(input).to_string()
 }
 
-/// Escape plain text so it can be stored as a body (used by imports that only
-/// carry text, e.g. older exports or markdown-ish files).
-pub fn text_to_html(text: &str) -> String {
-    text.lines()
-        .map(|l| {
-            if l.is_empty() {
-                "<div><br></div>".to_string()
-            } else {
-                format!("<div>{}</div>", escape(l))
-            }
-        })
-        .collect()
-}
-
-fn escape(s: &str) -> String {
-    let mut o = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '&' => o.push_str("&amp;"),
-            '<' => o.push_str("&lt;"),
-            '>' => o.push_str("&gt;"),
-            '"' => o.push_str("&quot;"),
-            '\'' => o.push_str("&#39;"),
-            _ => o.push(c),
-        }
-    }
-    o
-}
-
 /// Derive a plain-text projection from *sanitised* HTML. Block boundaries
 /// become newlines, list items get a readable prefix.
 pub fn html_to_text(html: &str) -> String {

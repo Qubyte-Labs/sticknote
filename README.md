@@ -28,7 +28,7 @@ npm run app:build    # release build + NSIS/MSI installers in src-tauri/target/r
 - **Delete with undo** – no confirmation; a 10-second Undo toast (Ctrl+Z).
 - **Archive** – "Mark complete" archives; restore any time.
 - **Tray menu**, **global hotkeys**, **start with Windows**, **hide over
-  fullscreen apps**, **import/export** (JSON, Markdown, text), **portable mode**.
+  fullscreen apps**, **export** (JSON or Markdown).
 - Light / dark / auto theme.
 
 ## Shortcuts
@@ -74,13 +74,13 @@ src
 
 - Every app command is permission-gated (`build.rs` app manifest) and each window
   type gets only what it needs (`capabilities/*.json`) — e.g. the deck cannot
-  import, export or change settings.
-- Note HTML is sanitised in Rust (ammonia allow-list) on every save, load and
-  import; only http/https/mailto links survive, and links open only through a
+  export or change settings.
+- Note HTML is sanitised in Rust (ammonia allow-list) on every save and load;
+  only http/https/mailto links survive, and links open only through a
   Rust command that re-validates the scheme.
 - Strict CSP (`script-src 'self'`, no remote content), frozen prototypes,
   plain-text paste, file dialogs owned by Rust (the webview never sees paths),
-  import size caps, input length limits, UUID-validated ids.
+  input length limits, UUID-validated ids.
 - No network access, no telemetry.
 
 ## Performance

@@ -1,7 +1,7 @@
 use crate::error::{AppError, AppResult};
 use crate::models::*;
 use crate::state::{emit_changed, events, AppState, DeletedPayload, UNDO_WINDOW};
-use crate::store::{clamp_chars, normalize};
+use crate::store::clamp_chars;
 use crate::{sanitize, windows};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
@@ -320,30 +320,3 @@ pub fn save_note_bounds(id: String, bounds: Bounds, app: AppHandle, state: State
     Ok(())
 }
 
-/// Merge imported notes; ids that already exist get fresh ids so nothing is
-/// overwritten.
-pub fn merge_imported(app: &AppHandle, incoming: Vec<Note>) -> usize {
-    let state = app.state::<AppState>();
-    let count;
-    {
-        let mut g = state.inner.lock();
-        let room = MAX_NOTES.saturating_sub(g.notes.len());
-        let mut max_order = g.notes.iter().map(|n| n.order).max().unwrap_or(0);
-        let mut added = 0;
-        for mut n in incoming.into_iter().take(room) {
-            n = normalize(n);
-            if g.notes.iter().any(|e| e.id == n.id) {
-                n.id = uuid::Uuid::new_v4().to_string();
-            }
-            max_order += 1;
-            n.order = max_order;
-            n.bounds = None;
-            g.notes.push(n);
-            added += 1;
-        }
-        count = added;
-    }
-    state.schedule_save(app);
-    emit_changed(app, None, vec![]);
-    count
-}

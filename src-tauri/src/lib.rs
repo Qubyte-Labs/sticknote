@@ -124,8 +124,6 @@ pub fn run() {
             commands::window::note_id,
             commands::window::quit_app,
             commands::io::export_notes,
-            commands::io::import_notes,
-            commands::io::open_data_folder,
             commands::io::open_link,
         ])
         .build(tauri::generate_context!())

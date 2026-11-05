@@ -68,12 +68,8 @@ export function listPanel() {
   );
   ioBtn.addEventListener("click", () =>
     showMenu(ioBtn, [
-      { label: "Import notes…", icon: "upload", run: () => void actions.importNotes() },
-      { separator: true },
       { label: "Export all as JSON…", icon: "download", run: () => void actions.exportNotes("json") },
       { label: "Export all as Markdown…", icon: "download", run: () => void actions.exportNotes("markdown") },
-      { separator: true },
-      { label: "Open data folder", icon: "folder", run: () => void api.openDataFolder() },
     ]),
   );
 

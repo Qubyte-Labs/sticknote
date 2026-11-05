@@ -19,7 +19,6 @@ pub const PORTABLE_MARKER: &str = "portable";
 const NOTES_FILE: &str = "notes.json";
 const SETTINGS_FILE: &str = "settings.json";
 const FILE_VERSION: u32 = 1;
-pub const MAX_IMPORT_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct DataPaths {

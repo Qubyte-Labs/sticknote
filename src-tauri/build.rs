@@ -31,8 +31,6 @@ const COMMANDS: &[&str] = &[
     "quit_app",
     // io
     "export_notes",
-    "import_notes",
-    "open_data_folder",
     "open_link",
 ];
 

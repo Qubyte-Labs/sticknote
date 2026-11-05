@@ -34,8 +34,6 @@
     "allow-close-self",
     "allow-quit-app",
     "allow-export-notes",
-    "allow-import-notes",
-    "allow-open-data-folder",
     "allow-open-link"
   ]
 }
