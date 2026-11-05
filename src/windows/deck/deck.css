@@ -72,10 +72,10 @@ body {
   color: var(--note-ink);
   cursor: pointer;
   touch-action: none;
-  transition: width var(--deck-anim) var(--deck-ease), height var(--deck-anim) var(--deck-ease),
-    margin var(--deck-anim) var(--deck-ease), border-radius var(--deck-anim) var(--deck-ease),
+  transition: width 220ms var(--deck-ease), clip-path var(--deck-anim) var(--deck-ease),
     transform var(--deck-anim) var(--deck-ease), translate var(--deck-anim) var(--deck-ease),
     box-shadow 240ms var(--ease-in-out), opacity 180ms var(--ease-out);
+  will-change: clip-path, translate;
   translate: 0 var(--shift, 0px); /* pushed aside by the open card */
 }
 .deck[data-edge="right"] .tab {
@@ -294,8 +294,7 @@ body {
    back in as the card leaves. */
 .tab.under {
   opacity: 0;
-  transition-duration: var(--deck-anim), var(--deck-anim), var(--deck-anim), var(--deck-anim),
-    var(--deck-anim), var(--deck-anim), 240ms, 0ms;
+  transition-duration: 220ms, var(--deck-anim), var(--deck-anim), var(--deck-anim), 240ms, 0ms;
 }
 
 .peek-title {
@@ -325,32 +324,57 @@ body {
   white-space: nowrap;
 }
 
-/* ---- Resting state: pills ------------------------------------------------------
-   All pills in one straight column, an equal distance from the edge. The
-   tab → pill change animates both ways. */
+/* ---- Resting state: pills ---------------------------------------------------
+   Pills are the tabs themselves, clipped down to a small capsule and slid
+   into a tight column (--pill-dy from main.ts). Tabs never change size, so
+   pill ↔ tab animates only clip-path and translate: no layout per frame. */
+.deck[data-edge="right"] .tab {
+  clip-path: inset(0px 0px 0px 0px round 11px 0px 0px 11px);
+}
+.deck[data-edge="left"] .tab {
+  clip-path: inset(0px 0px 0px 0px round 0px 11px 11px 0px);
+}
 .deck.compact .tab {
-  --w: var(--deck-pill-w);
-  width: var(--deck-pill-w);
-  height: var(--deck-pill-h);
-  margin: calc(var(--deck-pill-gap) / 2) 0 !important;
-  border-radius: var(--radius-pill) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28) !important;
-  transform: none;
+  --lean: 0px;
+  --tilt: 0deg;
+  --w: var(--deck-tab-w);
+  translate: 0 var(--pill-dy, 0px);
 }
-.deck[data-edge="right"].compact .column {
-  right: var(--deck-pill-inset);
+.deck[data-edge="right"].compact .tab {
+  clip-path: inset(
+    calc((var(--tab-h, 76px) - var(--deck-pill-h)) / 2)
+      calc(var(--deck-overhang) + var(--deck-pill-inset))
+      calc((var(--tab-h, 76px) - var(--deck-pill-h)) / 2)
+      calc(100% - var(--deck-overhang) - var(--deck-pill-inset) - var(--deck-pill-w))
+      round 999px
+  );
 }
-.deck[data-edge="left"].compact .column {
-  left: var(--deck-pill-inset);
+.deck[data-edge="left"].compact .tab {
+  clip-path: inset(
+    calc((var(--tab-h, 76px) - var(--deck-pill-h)) / 2)
+      calc(100% - var(--deck-overhang) - var(--deck-pill-inset) - var(--deck-pill-w))
+      calc((var(--tab-h, 76px) - var(--deck-pill-h)) / 2)
+      calc(var(--deck-overhang) + var(--deck-pill-inset))
+      round 999px
+  );
 }
-.deck.compact .tab-strip {
-  opacity: 0;
-}
-.deck.compact .tab.active {
-  box-shadow: 0 0 0 1.5px var(--note-strong), 0 1px 3px rgba(0, 0, 0, 0.28) !important;
-}
+.deck.compact .tab-strip,
 .deck.compact .tab.active::after {
   opacity: 0;
+}
+/* Tab/pill shadow lives on the column: a box-shadow would be clipped away
+   by the tabs' clip-path. */
+.deck[data-edge="right"] .stack {
+  filter: drop-shadow(-2px 2px 5px rgba(0, 0, 0, 0.2));
+}
+.deck[data-edge="left"] .stack {
+  filter: drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.2));
+}
+.stack {
+  transition: filter var(--deck-anim) var(--deck-ease);
+}
+.deck.compact .stack {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
 
 /* ---- Drag & drop ------------------------------------------------------------ */
@@ -359,6 +383,8 @@ body {
   z-index: 10;
   margin: 0;
   transition: none;
+  clip-path: none !important;
+  translate: none;
 }
 .deck[data-edge="right"] .tab.floating {
   right: 0;
@@ -476,7 +502,7 @@ body {
 }
 .more {
   translate: 0 var(--shift, 0px);
-  transition: translate var(--deck-anim) var(--deck-ease);
+  transition: translate var(--deck-anim) var(--deck-ease), opacity 200ms, transform 220ms var(--deck-ease);
   margin-top: 8px;
   padding: 2px 6px;
   border-radius: var(--radius-pill);
@@ -485,14 +511,11 @@ body {
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
 }
-.deck.compact .plus {
-  height: 0;
-  margin: 0 2px;
+.deck.compact .plus,
+.deck.compact .more {
   opacity: 0;
   pointer-events: none;
-}
-.deck.compact .more {
-  display: none;
+  transform: scale(0.6);
 }
 
 /* ---- Undo toast -------------------------------------------------------------- */

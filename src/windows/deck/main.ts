@@ -24,7 +24,9 @@ const LEAVE_DELAY = 650; // how long the deck waits before turning back into pil
 const SLACK = 28; // px of forgiveness around the deck before it counts as "left"
 const ANIM_MS = 380; // must match --deck-anim in deck.css
 const CLOSE_MS = 200; // must match .card-wrap.leaving in deck.css
-const GAP = 8; // space between the open card and the tabs pushed aside
+/** How the pushed-aside tabs meet the open card: negative = they tuck a few
+ *  px under its edge (as in Peeky Notes), so there is no visible gap. */
+const GAP = -6;
 const TOAST_MS = 10_000;
 const SHADOW_ROOM = 22;
 
@@ -82,7 +84,7 @@ function measure() {
   if (engaged) {
     // Room for the tabs pushed apart around the tallest card, decided once.
     w = cssNum("--deck-peek-w") + SHADOW_ROOM;
-    hgt = fullHeight() + cssNum("--deck-peek-max-h") + GAP * 2;
+    hgt = fullHeight() + cssNum("--deck-peek-max-h") + 16;
   } else if (root.classList.contains("compact")) {
     w = cssNum("--deck-pill-w") + cssNum("--deck-pill-inset") * 2 + 6;
     hgt = pillHeight();
@@ -172,11 +174,25 @@ function render() {
     if (!more.isConnected) column.insertBefore(more, plus);
   } else more.remove();
 
+  layoutPills();
   setCompact(!engaged, false);
   const tab = reopen && engaged ? stack.querySelector<HTMLElement>(`.tab[data-id="${reopen}"]`) : null;
   if (tab) openCard(tab, false);
   else resetCard();
   void fit();
+}
+
+/** Where each tab's pill sits: a tight, evenly spaced column centred on the
+ *  deck. Stored as a per-tab offset (--pill-dy) so pill ↔ tab is a pure
+ *  translate + clip animation. */
+function layoutPills() {
+  const all = tabs();
+  const step = cssNum("--deck-pill-h") + cssNum("--deck-pill-gap");
+  const firstMid = column.offsetHeight / 2 - (all.length * step) / 2 + step / 2;
+  all.forEach((t, i) => {
+    const tabMid = t.offsetTop + t.offsetHeight / 2;
+    t.style.setProperty("--pill-dy", `${Math.round(firstMid + i * step - tabMid)}px`);
+  });
 }
 
 /** Resting state is pills; the deck becomes tabs while the pointer is on it. */
