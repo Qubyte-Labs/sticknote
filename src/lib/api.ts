@@ -42,6 +42,7 @@ export const api = {
   deckResize: (width: number, height: number) => invoke<void>("deck_resize", { width, height }),
   closeSelf: () => invoke<void>("close_self"),
   noteReady: () => invoke<void>("note_ready"),
+  noteId: () => invoke<string | null>("note_id"),
   quit: () => invoke<void>("quit_app"),
 
   // io

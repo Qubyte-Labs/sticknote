@@ -26,16 +26,35 @@ body {
   transition: background var(--dur-med) var(--ease-in-out);
   opacity: 0; /* laid out but invisible until the window is revealed */
 }
-/* Played once the window is actually visible (see note_ready). */
+/* Entrance: played when the window appears (open, or shown again after "—"). */
 .note-shell.enter {
   opacity: 1;
-  animation: note-in var(--dur-slow) var(--ease-out);
+  animation: note-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Exit: played before hide / close / delete / mark complete. Keep the
+   duration in sync with LEAVE_MS in main.ts. */
+.note-shell.leave {
+  opacity: 1;
+  animation: note-out 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 
 @keyframes note-in {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(6px);
+    transform: scale(0.94) translateY(10px);
+  }
+}
+@keyframes note-out {
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-shell.enter,
+  .note-shell.leave {
+    animation-duration: 1ms;
   }
 }
 

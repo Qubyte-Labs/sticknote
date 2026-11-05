@@ -20,6 +20,7 @@
     "allow-undo-delete",
     "allow-close-self",
     "allow-note-ready",
+    "allow-note-id",
     "allow-get-settings",
     "allow-open-link",
     "allow-open-manager"

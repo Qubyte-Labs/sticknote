@@ -82,6 +82,7 @@ pub fn run() {
             tray::create(&handle, &commands::settings::view(&handle))?;
             shortcuts::register(&handle);
             windows::deck::create(&handle)?;
+            windows::note::prewarm(&handle); // a ready note window = instant opening
             platform::start_fullscreen_watcher(handle.clone());
 
             let autostarted = std::env::args().any(|a| a == AUTOSTART_FLAG);
@@ -93,7 +94,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
                 if window.label().starts_with(windows::note::PREFIX) {
-                    windows::note::on_destroyed(window.app_handle());
+                    windows::note::on_destroyed(window.app_handle(), window.label());
                 }
             }
         })
@@ -120,6 +121,7 @@ pub fn run() {
             commands::window::deck_resize,
             commands::window::close_self,
             commands::window::note_ready,
+            commands::window::note_id,
             commands::window::quit_app,
             commands::io::export_notes,
             commands::io::import_notes,

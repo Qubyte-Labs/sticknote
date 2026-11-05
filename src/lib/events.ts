@@ -9,6 +9,10 @@ interface EventMap {
   "settings:changed": Settings;
   "deck:note-windows": string[];
   "manager:navigate": ManagerView;
+  /** a spare note window is being given a note to show */
+  "note:bind": { label: string; id: string };
+  /** a hidden note window is being shown again (payload: its label) */
+  "note:shown": string;
 }
 
 export function on<K extends keyof EventMap>(name: K, cb: (payload: EventMap[K]) => void): Promise<UnlistenFn> {

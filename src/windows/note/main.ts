@@ -21,7 +21,9 @@ import { swatches } from "../../components/swatches";
 import type { Note, NoteFont } from "../../lib/types";
 
 const win = getCurrentWindow();
-const id = win.label.replace(/^note-/, "");
+/** The note this window shows. Note windows are pre-loaded as hidden spares
+ *  and given their note when one is opened (see windows/note.rs). */
+let id = "";
 let note: Note;
 let saving = false;
 
@@ -167,22 +169,43 @@ title.addEventListener("keydown", (e) => {
 });
 
 // ---- actions ---------------------------------------------------------------
+// ---- enter / leave animations ---------------------------------------------
+const LEAVE_MS = 200; // must match .note-shell.leave in note.css
+
+function playEnter() {
+  shell.classList.remove("leave", "enter");
+  void shell.offsetWidth; // restart the animation
+  shell.classList.add("enter");
+}
+
+/** Fade + shrink the note away before the window goes. */
+function playLeave(): Promise<void> {
+  shell.classList.remove("enter");
+  shell.classList.add("leave");
+  return new Promise((r) => setTimeout(r, LEAVE_MS));
+}
+
 async function close() {
   await flush();
+  await playLeave();
   await api.closeSelf();
 }
 
 async function hide() {
   await flush();
+  await playLeave();
   await win.hide();
+  // stay invisible until shown again (note:shown replays the entrance)
 }
 
 async function remove() {
+  await playLeave();
   await api.deleteNotes([id]); // backend closes this window; Undo lives on the deck
 }
 
 async function complete() {
   await flush();
+  await playLeave();
   await api.setStatus([id], "archived");
 }
 
@@ -230,7 +253,7 @@ window.addEventListener("blur", () => void flush());
 
 // ---- sync with other windows -----------------------------------------------
 void on("notes:changed", async (p) => {
-  if (p.origin === win.label || (p.ids.length && !p.ids.includes(id))) return;
+  if (!id || p.origin === win.label || (p.ids.length && !p.ids.includes(id))) return; // !id: spare not bound yet
   try {
     note = await api.getNote(id);
     paint(false);
@@ -242,17 +265,43 @@ void on("settings:changed", (s) => setTheme(s.theme));
 window.addEventListener("focus", renderMeta);
 
 // ---- boot ------------------------------------------------------------------
+/** Resolve which note to show: already bound (window created on demand), or
+ *  wait to be handed one (pre-loaded spare). */
+function whichNote(): Promise<string> {
+  return new Promise((resolve) => {
+    let done = false;
+    const take = (noteId: string) => {
+      if (done) return;
+      done = true;
+      resolve(noteId);
+    };
+    void on("note:bind", (p) => {
+      if (p.label === win.label) take(p.id);
+    });
+    void api.noteId().then((noteId) => noteId && take(noteId));
+  });
+}
+
+void on("note:shown", (label) => {
+  if (label !== win.label) return;
+  playEnter();
+  renderMeta();
+  editor.focus(true);
+});
+
 (async () => {
-  const [n, s] = await Promise.all([api.getNote(id), api.getSettings()]);
+  const settings = api.getSettings(); // load while waiting to be bound
+  id = await whichNote();
+  const [n, s] = await Promise.all([api.getNote(id), settings]);
   note = n;
   setTheme(s.theme);
   paint(true);
   tools.refresh();
-  // Wait for fonts + a painted frame, then ask the backend to show the window.
+  // Paint first, then ask the backend to show the window, then animate in.
   await document.fonts.ready;
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   await api.noteReady().catch(() => {}); // never leave the note invisible
-  shell.classList.add("enter");
+  playEnter();
   if (!note.title && !note.text) title.focus();
   else editor.focus(true);
 })();

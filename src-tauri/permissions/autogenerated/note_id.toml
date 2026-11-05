@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-note-id"
+description = "Enables the note_id command without any pre-configured scope."
+commands.allow = ["note_id"]
+
+[[permission]]
+identifier = "deny-note-id"
+description = "Denies the note_id command without any pre-configured scope."
+commands.deny = ["note_id"]

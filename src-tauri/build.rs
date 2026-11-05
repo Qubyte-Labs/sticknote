@@ -27,6 +27,7 @@ const COMMANDS: &[&str] = &[
     "deck_resize",
     "close_self",
     "note_ready",
+    "note_id",
     "quit_app",
     // io
     "export_notes",

@@ -38,22 +38,22 @@ pub fn deck_resize(width: f64, height: f64, app: AppHandle, window: WebviewWindo
     Ok(())
 }
 
-/// Close the calling window. Note windows save their geometry first; every
-/// window is destroyed, not hidden.
+/// Close the calling window. Every window is destroyed, not hidden.
 #[tauri::command]
-pub fn close_self(app: AppHandle, window: WebviewWindow) {
-    match window.label().strip_prefix(note::PREFIX) {
-        Some(id) => note::close(&app, id),
-        None => {
-            let _ = window.destroy();
-        }
-    }
+pub fn close_self(window: WebviewWindow) {
+    let _ = window.destroy();
 }
 
-/// A note window finished its first paint: reveal it.
+/// Which note the calling note window shows (None for a waiting spare).
+#[tauri::command]
+pub fn note_id(window: WebviewWindow) -> Option<String> {
+    note::id_for(window.label())
+}
+
+/// A note window finished painting its note: reveal it.
 #[tauri::command]
 pub fn note_ready(window: WebviewWindow) {
-    if window.label().starts_with(note::PREFIX) && !window.is_visible().unwrap_or(false) {
+    if note::id_for(window.label()).is_some() && !window.is_visible().unwrap_or(false) {
         note::reveal(&window);
     }
 }
