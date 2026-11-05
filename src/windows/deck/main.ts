@@ -37,7 +37,8 @@ const column = h("div", { class: "column" }, stack, plus);
 
 const cardLabel = h("span", { class: "tab-label" });
 const cardStrip = h("div", { class: "card-strip" }, cardLabel);
-const cardContent = h("div", { class: "card-content" });
+/** The visible content layer. Switching notes cross-fades a new layer over it. */
+let cardContent = h("div", { class: "card-content" });
 const card = h("div", { class: "card", role: "button", "aria-hidden": "true" }, cardStrip, cardContent);
 // The wrapper carries the shadow: clip-path on the card would cut it off.
 const cardWrap = h("div", { class: "card-wrap" }, card);
@@ -190,18 +191,65 @@ function setCompact(on: boolean, animate = true) {
 }
 
 // ---- the card ------------------------------------------------------------------
-function fillCard(n: Note) {
-  card.dataset.color = String(n.color);
-  card.dataset.font = n.font;
-  card.dataset.id = n.id;
-  cardLabel.textContent = displayTitle(n.title, n.text);
+const SWAP_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+function contentFor(n: Note): HTMLElement[] {
   const body = h("div", { class: "peek-body rich" });
   setRich(body, n.body);
-  cardContent.replaceChildren(
+  return [
     h("div", { class: "peek-title truncate" }, displayTitle(n.title, n.text)),
     body,
     h("div", { class: "peek-foot" }, `Edited ${agoLong(n.updated)} · Click to open`),
+  ];
+}
+
+function setCardMeta(n: Note) {
+  card.dataset.color = String(n.color);
+  card.dataset.font = n.font;
+  card.dataset.id = n.id;
+}
+
+/** Fill the card in place (first open / re-render). */
+function fillCard(n: Note) {
+  setCardMeta(n);
+  cardLabel.textContent = displayTitle(n.title, n.text);
+  card.querySelectorAll(".card-content").forEach((l) => l !== cardContent && l.remove());
+  cardContent.replaceChildren(...contentFor(n));
+}
+
+/** Switch to another note: the new content layer is added (so its height is
+ *  known before anything moves), then old and new cross-fade while sliding a
+ *  few pixels in the direction the card travels. */
+function swapCard(n: Note, dir: number) {
+  setCardMeta(n);
+  // Drop layers left over from an earlier, still-running swap.
+  card.querySelectorAll(".card-content").forEach((l) => l !== cardContent && l.remove());
+  const old = cardContent;
+  const next = h("div", { class: "card-content" }, ...contentFor(n));
+  card.append(next);
+  cardContent = next;
+
+  const shift = 10 * dir;
+  old.animate(
+    [
+      { opacity: 1, transform: "none" },
+      { opacity: 0, transform: `translateY(${-shift}px)` },
+    ],
+    { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+  ).onfinish = () => old.remove();
+  next.animate(
+    [
+      { opacity: 0, transform: `translateY(${shift}px)` },
+      { opacity: 1, transform: "none" },
+    ],
+    { duration: 300, delay: 60, easing: SWAP_EASE, fill: "backwards" },
   );
+
+  // Title strip: quick cross-fade of the label.
+  cardLabel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, fill: "forwards" }).onfinish = () => {
+    cardLabel.textContent = displayTitle(n.title, n.text);
+    cardLabel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: SWAP_EASE, fill: "forwards" });
+  };
 }
 
 /** Untransformed position of a tab in window coordinates. */
@@ -255,20 +303,11 @@ function openCard(tab: HTMLElement, animate = true) {
   openTab = tab;
 
   if (switching) {
-    // Fade the old content out, swap, fade the new content in.
-    cardContent.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 90, fill: "forwards" }).onfinish = () => {
-      if (openTab !== tab) return;
-      fillCard(n);
-      place(tab);
-      cardContent.animate(
-        [
-          { opacity: 0, transform: "translateY(4px)" },
-          { opacity: 1, transform: "none" },
-        ],
-        { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
-      );
-    };
-    // Move the card (and neighbours) right away, in parallel with the fade.
+    // New content first (so the final height is known), then one smooth move
+    // of card, height and neighbours to their final place.
+    const prevY = parseFloat(root.style.getPropertyValue("--card-y")) || 0;
+    const nextY = tabBox(tab).top;
+    swapCard(n, nextY >= prevY ? 1 : -1);
     place(tab);
     tab.classList.add("under");
     return;
