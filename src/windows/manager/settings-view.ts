@@ -1,13 +1,11 @@
 // Settings page.
 import { api, errorText } from "../../lib/api";
 import { h } from "../../lib/dom";
-import { icon } from "../../lib/icons";
 import { segmented, toggle } from "../../components/controls";
 import { toast } from "../../components/toast";
 import { setTheme } from "../../lib/theme";
 import type { Settings, SettingsPatch } from "../../lib/types";
 import { state, subscribe, update } from "./state";
-import { actions } from "./actions";
 
 const GLOBAL_KEYS: [string, string][] = [
   ["Ctrl + Alt + N", "New note"],
@@ -50,6 +48,24 @@ function keys(list: [string, string][]) {
   return h("div", { class: "keys" }, ...list.map(([k, d]) => h("div", { class: "key-row" }, h("kbd", null, k), h("span", null, d))));
 }
 
+/** Shortcut reference, folded away until asked for. */
+function shortcutsCard(): HTMLElement {
+  const body = h("div", { class: "keys-body", hidden: true },
+    h("div", { class: "keys-heading t-caps" }, "Anywhere"),
+    keys(GLOBAL_KEYS),
+    h("div", { class: "keys-heading t-caps" }, "In a note"),
+    keys(NOTE_KEYS),
+  );
+  const btn = h("button", { class: "btn btn-sm", "aria-expanded": "false" }, "Show");
+  btn.addEventListener("click", () => {
+    const open = body.hidden;
+    body.hidden = !open;
+    btn.textContent = open ? "Hide" : "Show";
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  return h("div", { class: "set-card" }, row("Keyboard shortcuts", null, btn), body);
+}
+
 function build(s: Settings): HTMLElement[] {
   return [
     h("h1", { class: "page-title" }, "Settings"),
@@ -83,30 +99,7 @@ function build(s: Settings): HTMLElement[] {
         toggle("Start with Windows", s.startWithWindows, (v) => void patch({ startWithWindows: v }))),
     ),
 
-    h("div", { class: "set-card" },
-      row("Global shortcuts",
-        "Registered system-wide, so they work with nothing focused. If another app already owns one, it is skipped silently and the tray menu reaches the same commands.",
-        null),
-      keys(GLOBAL_KEYS),
-    ),
-
-    h("div", { class: "set-card" }, row("In a note", null, null), keys(NOTE_KEYS)),
-
-    h("div", { class: "set-card" },
-      row("Your notes", "Stored only on this PC, in plain JSON you can back up or move.", null),
-      h("div", { class: "path-row" },
-        h("code", { class: "path truncate", title: s.dataDir }, s.dataDir),
-        h("button", { class: "btn btn-sm", onclick: () => void api.openDataFolder() }, icon("folder", 14), "Open folder"),
-      ),
-      h("div", { class: "btn-row" },
-        h("button", { class: "btn btn-sm", onclick: () => void actions.importNotes() }, icon("upload", 14), "Import…"),
-        h("button", { class: "btn btn-sm", onclick: () => void actions.exportNotes("json") }, icon("download", 14), "Export JSON…"),
-        h("button", { class: "btn btn-sm", onclick: () => void actions.exportNotes("markdown") }, icon("download", 14), "Export Markdown…"),
-      ),
-      row("Portable mode",
-        "Keep notes in a folder next to the app, to carry them between PCs on a USB drive. Your notes are copied and Peekin restarts.",
-        toggle("Portable mode", s.portable, (v) => void patch({ portable: v }))),
-    ),
+    shortcutsCard(),
 
     h("div", { class: "set-foot" },
       h("button", { class: "btn btn-danger btn-sm", onclick: () => void api.quit() }, "Quit Peekin"),

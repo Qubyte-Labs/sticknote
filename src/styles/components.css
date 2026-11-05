@@ -319,6 +319,18 @@ kbd {
 .toast .btn:hover {
   background: rgba(255, 255, 255, 0.18);
 }
+.toast .toast-x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: rgba(242, 242, 246, 0.7);
+}
+.toast .toast-x:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
 .toast .progress {
   position: absolute;
   left: 0;

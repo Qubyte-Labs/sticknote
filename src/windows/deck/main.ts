@@ -1,15 +1,16 @@
 // The deck: note tabs on the screen edge.
-//  * hover a tab → that tab itself grows out of the edge into a preview of
-//    the note; the tabs above and below slide apart to make room, so nothing
-//    is ever covered. Moving to another tab closes one and opens the other in
-//    a single smooth motion.
-//  * click a tab → the note opens in its own window
-//  * drag a tab by its title → reorder (dashed slot shows the drop target)
-//  * while note windows are open the deck shrinks to coloured pills
+//  * resting: a slim column of coloured pills
+//  * pointer arrives: pills grow into leaning tabs
+//  * hover a tab: the note card unfolds out of that tab; the tabs above and
+//    below slide out of the way so nothing is covered. Moving to another tab
+//    glides the same card there and cross-fades its content.
+//  * click a tab / the card: the note opens in its own window
+//  * drag a tab (or the open card) by its title: reorder
 //
-// The window is sized to its content by the backend (deck_resize), so it
-// never blocks clicks on the rest of the screen edge. It widens once when the
-// pointer enters the deck, so previews never wait on a resize.
+// Smoothness: hover animations touch only compositor-friendly properties —
+// the card reveals with `clip-path`, its title strip and the neighbouring
+// tabs move with transforms. The tab column never re-lays out while you
+// hover, and the window is sized once when the pointer arrives.
 import { api } from "../../lib/api";
 import { on } from "../../lib/events";
 import { setTheme } from "../../lib/theme";
@@ -22,28 +23,39 @@ const SWITCH_DELAY = 50; // tiny dwell when sweeping across tabs (prevents flick
 const LEAVE_DELAY = 650; // how long the deck waits before turning back into pills
 const SLACK = 28; // px of forgiveness around the deck before it counts as "left"
 const ANIM_MS = 380; // must match --deck-anim in deck.css
+const GAP = 8; // space between the open card and the tabs pushed aside
 const TOAST_MS = 10_000;
 const SHADOW_ROOM = 22;
 
+// ---- DOM -------------------------------------------------------------------
 const root = document.getElementById("deck")!;
 const stack = h("div", { class: "stack" });
 const plus = h("button", { class: "plus", title: "New note (Ctrl+Alt+N)", "aria-label": "New note" }, icon("plus", 14));
 const more = h("button", { class: "more", title: "Show all notes" });
 const column = h("div", { class: "column" }, stack, plus);
-root.append(column);
 
+const cardLabel = h("span", { class: "tab-label" });
+const cardStrip = h("div", { class: "card-strip" }, cardLabel);
+const cardContent = h("div", { class: "card-content" });
+const card = h("div", { class: "card", role: "button", "aria-hidden": "true" }, cardStrip, cardContent);
+// The wrapper carries the shadow: clip-path on the card would cut it off.
+const cardWrap = h("div", { class: "card-wrap" }, card);
+root.append(column, cardWrap);
+
+// ---- state -----------------------------------------------------------------
 let notes: Note[] = [];
 let edge: Edge = "right";
 let openWindows = new Set<string>();
-let engaged = false; // pointer is over the deck: window is widened
-let openTab: HTMLElement | null = null; // the tab currently showing its preview
-let tabHs: number[] = []; // heights of the tabs currently shown
+let engaged = false; // pointer is on the deck: window widened, tabs showing
+let openTab: HTMLElement | null = null; // tab whose card is showing
+let tabHs: number[] = [];
 let hasMore = false;
-let pointer = { x: -1, y: -1 }; // last pointer position, in screen coordinates
+let pointer = { x: -1, y: -1 }; // last pointer position, screen coordinates
 let engaging: Promise<void> = Promise.resolve();
 let hoverTimer: number | undefined;
 let leaveTimer: number | undefined;
 let shrinkTimer: number | undefined;
+let hideTimer: number | undefined;
 let toastEl: HTMLElement | null = null;
 let toastTimer: number | undefined;
 let dragging = false;
@@ -51,13 +63,12 @@ let lastSize = "";
 
 const cssNum = (name: string) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
 const noteOf = (tab: HTMLElement) => notes.find((n) => n.id === tab.dataset.id);
+const tabs = () => Array.from(stack.querySelectorAll<HTMLElement>(".tab"));
 
-// ---- sizing ----------------------------------------------------------------
-// Window sizes are computed from the geometry tokens rather than measured,
-// so they're always the *final* size even while tabs/pills are animating.
+// ---- window sizing ---------------------------------------------------------
+// Computed from the geometry tokens (never measured mid-animation).
 function fullHeight() {
-  const g = cssNum("--deck-gutter") * 2;
-  return g + tabHs.reduce((a, b) => a + b - 6, 0) + 40 /* "+" */ + (hasMore ? 26 : 0);
+  return cssNum("--deck-gutter") * 2 + tabHs.reduce((a, b) => a + b - 6, 0) + 40 + (hasMore ? 26 : 0);
 }
 function pillHeight() {
   return cssNum("--deck-gutter") * 2 + tabHs.length * (cssNum("--deck-pill-h") + cssNum("--deck-pill-gap"));
@@ -67,10 +78,9 @@ function measure() {
   let w: number;
   let hgt: number;
   if (engaged) {
-    // Room for tabs plus any one tab fully open, decided once on entry, so
-    // hovering from tab to tab never needs another resize.
+    // Room for the tabs pushed apart around the tallest card, decided once.
     w = cssNum("--deck-peek-w") + SHADOW_ROOM;
-    hgt = fullHeight() + cssNum("--deck-peek-max-h") - 40 + 16;
+    hgt = fullHeight() + cssNum("--deck-peek-max-h") + GAP * 2;
   } else if (root.classList.contains("compact")) {
     w = cssNum("--deck-pill-w") + cssNum("--deck-pill-inset") * 2 + 6;
     hgt = pillHeight();
@@ -91,7 +101,7 @@ window.addEventListener("resize", () => {
   resized = null;
 });
 
-/** Ask the backend to fit the window to the content; resolves once applied. */
+/** Fit the window to the content; resolves once the new size is applied. */
 async function fit(): Promise<void> {
   const { w, h: hh } = measure();
   const key = `${w}x${hh}`;
@@ -99,13 +109,13 @@ async function fit(): Promise<void> {
   lastSize = key;
   const done = new Promise<void>((res) => {
     resized = res;
-    setTimeout(res, 80); // in case the size didn't actually change
+    setTimeout(res, 80);
   });
   await api.deckResize(w, hh);
   await done;
 }
 
-// ---- tabs --------------------------------------------------------------------
+// ---- tabs ----------------------------------------------------------------------
 function tabHeights(list: Note[]): number[] {
   const base = list.map((n) => Math.min(118, Math.max(64, 40 + displayTitle(n.title, n.text).length * 6.5)));
   const avail = window.screen.availHeight - 140 - cssNum("--deck-peek-max-h");
@@ -121,8 +131,7 @@ function render() {
   const list = notes.filter((n) => n.status === "active" && n.onDeck).sort((a, b) => a.order - b.order);
   const heights = tabHeights(list);
 
-  // Show as many as fit (leaving room for one open preview); the rest are
-  // one click away in All notes.
+  // Show as many as fit (with room for an open card); the rest live in All notes.
   const avail = window.screen.availHeight - 120 - cssNum("--deck-peek-max-h");
   let used = 0;
   let shown = 0;
@@ -131,12 +140,11 @@ function render() {
     used += hh - 6;
     shown++;
   }
-
   tabHs = heights.slice(0, shown);
   hasMore = list.length > shown;
+
   const reopen = openTab?.dataset.id;
   openTab = null;
-  stack.classList.remove("has-open");
   stack.replaceChildren(
     ...list.slice(0, shown).map((n, i) => {
       const label = displayTitle(n.title, n.text);
@@ -146,7 +154,6 @@ function render() {
           class: `tab${openWindows.has(n.id) ? " active" : ""}`,
           "data-id": n.id,
           "data-color": n.color,
-          "data-font": n.font,
           role: "button",
           tabindex: 0,
           "aria-label": label,
@@ -158,17 +165,15 @@ function render() {
       return tab;
     }),
   );
-
-  if (list.length > shown) {
+  if (hasMore) {
     more.textContent = `+${list.length - shown}`;
     if (!more.isConnected) column.insertBefore(more, plus);
   } else more.remove();
 
   setCompact(!engaged, false);
-  if (reopen) {
-    const tab = stack.querySelector<HTMLElement>(`.tab[data-id="${reopen}"]`);
-    if (tab) expand(tab, false);
-  }
+  const tab = reopen && engaged ? stack.querySelector<HTMLElement>(`.tab[data-id="${reopen}"]`) : null;
+  if (tab) openCard(tab, false);
+  else resetCard();
   void fit();
 }
 
@@ -183,60 +188,160 @@ function setCompact(on: boolean, animate = true) {
   }
 }
 
-// ---- preview: a tab grows into its note ------------------------------------------
-function previewContent(n: Note): HTMLElement {
+// ---- the card ------------------------------------------------------------------
+function fillCard(n: Note) {
+  card.dataset.color = String(n.color);
+  card.dataset.font = n.font;
+  card.dataset.id = n.id;
+  cardLabel.textContent = displayTitle(n.title, n.text);
   const body = h("div", { class: "peek-body rich" });
   setRich(body, n.body);
-  return h(
-    "div",
-    { class: "tab-content" },
+  cardContent.replaceChildren(
     h("div", { class: "peek-title truncate" }, displayTitle(n.title, n.text)),
     body,
     h("div", { class: "peek-foot" }, `Edited ${agoLong(n.updated)} · Click to open`),
   );
 }
 
-/** Open `tab` into a preview. `animate=false` restores state after a re-render. */
-function expand(tab: HTMLElement, animate = true) {
+/** Untransformed position of a tab in window coordinates. */
+function tabBox(tab: HTMLElement) {
+  const top = column.getBoundingClientRect().top + tab.offsetTop;
+  return { top, height: tab.offsetHeight };
+}
+
+/** Clip rectangle (as an inset) that shows only the part of the card where
+ *  `tab` sits — the card's closed state. */
+function tabClip(tabTop: number, tabH: number, cardY: number, cardH: number) {
+  const W = card.offsetWidth;
+  const visibleW = cssNum("--deck-tab-w") + cssNum("--deck-overhang");
+  const t = Math.max(0, tabTop - cardY);
+  const b = Math.max(0, cardY + cardH - tabTop - tabH);
+  return edge === "right"
+    ? `inset(${t}px 0px ${b}px ${W - visibleW}px round 11px 0 0 11px)`
+    : `inset(${t}px ${W - visibleW}px ${b}px 0px round 0 11px 11px 0)`;
+}
+
+/** Slide the tabs above up and the tabs below down to clear the card. */
+function pushNeighbours(open: HTMLElement | null, cardY = 0, cardH = 0) {
+  let i = -1;
+  const all = tabs();
+  const at = open ? all.indexOf(open) : -1;
+  let up = 0;
+  let down = 0;
+  if (open) {
+    const { top, height } = tabBox(open);
+    up = Math.max(0, top - cardY) + GAP;
+    down = Math.max(0, cardY + cardH - top - height) + GAP;
+  }
+  for (const t of all) {
+    i++;
+    const shift = at < 0 || i === at ? 0 : i < at ? -up : down;
+    t.style.setProperty("--shift", `${shift}px`);
+  }
+  plus.style.setProperty("--shift", `${at < 0 ? 0 : down}px`);
+  more.style.setProperty("--shift", `${at < 0 ? 0 : down}px`);
+}
+
+/** Open (or move) the card onto `tab`. */
+function openCard(tab: HTMLElement, animate = true) {
   const n = noteOf(tab);
   if (!n || tab === openTab) return;
-  collapse(openTab); // the previous one closes while this one opens
+  clearTimeout(hideTimer);
   clearTimeout(shrinkTimer);
-
-  let content = tab.querySelector<HTMLElement>(".tab-content");
-  if (!content) {
-    content = previewContent(n);
-    tab.append(content);
-  }
-  // Content has a fixed width, so its height is known before the animation.
-  const tabH = parseFloat(tab.style.getPropertyValue("--tab-h")) || tab.offsetHeight;
-  const openH = Math.max(tabH, cssNum("--deck-peek-min-h"), Math.min(content.offsetHeight, cssNum("--deck-peek-max-h")));
-  tab.style.setProperty("--open-h", `${openH}px`);
-  if (!animate) tab.classList.add("no-anim");
-  tab.classList.add("open");
-  tab.setAttribute("aria-expanded", "true");
+  const switching = openTab !== null && card.classList.contains("open");
+  openTab?.classList.remove("under");
   openTab = tab;
-  stack.classList.add("has-open");
-  if (!animate) requestAnimationFrame(() => tab.classList.remove("no-anim"));
-}
 
-function collapse(tab: HTMLElement | null) {
-  if (!tab) return;
-  tab.classList.remove("open");
-  tab.setAttribute("aria-expanded", "false");
-  if (openTab === tab) {
-    openTab = null;
-    stack.classList.remove("has-open");
+  if (switching) {
+    // Fade the old content out, swap, fade the new content in.
+    cardContent.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 90, fill: "forwards" }).onfinish = () => {
+      if (openTab !== tab) return;
+      fillCard(n);
+      place(tab);
+      cardContent.animate(
+        [
+          { opacity: 0, transform: "translateY(4px)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
+      );
+    };
+    // Move the card (and neighbours) right away, in parallel with the fade.
+    place(tab);
+    tab.classList.add("under");
+    return;
   }
-  // Drop the preview DOM once it has slid away (keeps the deck light).
-  window.setTimeout(() => {
-    if (!tab.classList.contains("open")) tab.querySelector(".tab-content")?.remove();
-  }, ANIM_MS + 40);
+
+  // First open: start clipped to the tab, then unfold.
+  fillCard(n);
+  card.classList.add("snap");
+  const geo = place(tab);
+  card.style.clipPath = tabClip(geo.tabTop, geo.tabH, geo.y, geo.h);
+  card.classList.add("visible");
+  card.classList.remove("open");
+  void card.offsetWidth; // commit the closed state
+  if (animate) card.classList.remove("snap");
+  card.style.clipPath = "";
+  card.classList.add("open");
+  tab.classList.add("under");
+  card.setAttribute("aria-hidden", "false");
+  if (!animate) requestAnimationFrame(() => card.classList.remove("snap"));
 }
 
-// ---- engage / disengage (pointer enters / leaves the deck) -------------------
-/** Pointer reached the deck: widen the window, turn pills into tabs and, if
- *  the pointer is on a tab, open it in the same motion. */
+/** Compute and apply the card's position/size next to `tab`. */
+function place(tab: HTMLElement) {
+  const { top: tabTop, height: tabH } = tabBox(tab);
+  const content = cardContent.scrollHeight;
+  const hgt = Math.round(
+    Math.max(tabH, cssNum("--deck-peek-min-h"), Math.min(content, cssNum("--deck-peek-max-h"))),
+  );
+  const y = Math.round(
+    Math.max(8, Math.min(tabTop + tabH / 2 - hgt / 2, window.innerHeight - hgt - 8)),
+  );
+  root.style.setProperty("--card-y", `${y}px`);
+  root.style.setProperty("--card-h", `${hgt}px`);
+  // Where the tab sits inside the card (for the strip in its closed state).
+  root.style.setProperty("--tab-mid", `${tabTop + tabH / 2 - y - hgt / 2}px`);
+  pushNeighbours(tab, y, hgt);
+  return { y, h: hgt, tabTop, tabH };
+}
+
+/** Fold the card back into its tab. */
+function closeCard() {
+  const tab = openTab;
+  if (!tab) return;
+  openTab = null;
+  pushNeighbours(null);
+  if (tab.isConnected) {
+    const { top, height } = tabBox(tab);
+    const y = parseFloat(root.style.getPropertyValue("--card-y")) || 0;
+    const hh = parseFloat(root.style.getPropertyValue("--card-h")) || 0;
+    card.style.clipPath = tabClip(top, height, y, hh);
+  }
+  card.classList.remove("open");
+  card.setAttribute("aria-hidden", "true");
+  clearTimeout(hideTimer);
+  hideTimer = window.setTimeout(() => {
+    if (openTab) return;
+    card.classList.remove("visible");
+    card.style.clipPath = "";
+    tab.classList.remove("under");
+  }, ANIM_MS);
+}
+
+/** Hide the card immediately (re-render, drag start). */
+function resetCard() {
+  clearTimeout(hideTimer);
+  openTab = null;
+  card.classList.add("snap");
+  card.classList.remove("open", "visible");
+  card.style.clipPath = "";
+  pushNeighbours(null);
+  stack.querySelectorAll(".tab.under").forEach((t) => t.classList.remove("under"));
+  requestAnimationFrame(() => card.classList.remove("snap"));
+}
+
+// ---- engage / disengage --------------------------------------------------------
 function engage(target?: HTMLElement): Promise<void> {
   clearTimeout(leaveTimer);
   leaveTimer = undefined;
@@ -246,16 +351,20 @@ function engage(target?: HTMLElement): Promise<void> {
     engaging = fit().then(() => {
       if (!engaged) return;
       setCompact(false);
-      // The tabs grow under a pointer that may not move again: once they
+      // Tabs grow under a pointer that may not move again: once they
       // settle, open whichever tab is under it.
       window.setTimeout(() => {
         if (!engaged || openTab || dragging) return;
         const tab = tabAtPointer();
-        if (tab) expand(tab);
+        if (tab) openCard(tab);
       }, ANIM_MS + 20);
     });
   }
-  if (target) void engaging.then(() => engaged && !dragging && expand(target));
+  if (target) {
+    void engaging.then(() => {
+      if (engaged && !dragging) openCard(target);
+    });
+  }
   return engaging;
 }
 
@@ -265,9 +374,8 @@ function disengage() {
   leaveTimer = undefined;
   if (!engaged) return;
   engaged = false;
-  collapse(openTab);
-  setCompact(true); // tabs animate back into pills
-  // Shrink the window only once everything has settled.
+  closeCard();
+  setCompact(true);
   clearTimeout(shrinkTimer);
   shrinkTimer = window.setTimeout(() => {
     if (!engaged) void fit();
@@ -280,14 +388,20 @@ function tabAtPointer(): HTMLElement | null {
   return tab && stack.contains(tab) ? tab : null;
 }
 
-// ---- hover tracking (event driven, no polling) --------------------------------
-/** Is the pointer on (or near) the deck? Uses the deck's geometry with some
- *  slack instead of element hit-testing, so the small gaps between tabs, the
- *  "+" button and an open card never count as leaving. */
+// ---- hover tracking (event driven, no polling) ------------------------------------
+/** Pointer on or near the deck (or its card)? Geometry with slack, so gaps
+ *  between tabs, the "+" and the card's edges never count as leaving. */
 function nearDeck(e: PointerEvent): boolean {
-  if ((e.target as HTMLElement).closest?.(".deck-toast")) return true;
+  if ((e.target as HTMLElement).closest?.(".deck-toast, .card-wrap")) return true;
   const r = column.getBoundingClientRect();
-  if (e.clientY < r.top - SLACK || e.clientY > r.bottom + SLACK) return false;
+  let top = r.top;
+  let bottom = r.bottom;
+  if (openTab) {
+    const c = card.getBoundingClientRect();
+    top = Math.min(top, c.top);
+    bottom = Math.max(bottom, c.bottom);
+  }
+  if (e.clientY < top - SLACK || e.clientY > bottom + SLACK) return false;
   const reach = engaged
     ? (openTab ? cssNum("--deck-peek-w") : cssNum("--deck-tab-w") + 5) + SLACK
     : cssNum("--deck-pill-w") + cssNum("--deck-pill-inset") * 2 + SLACK;
@@ -296,7 +410,7 @@ function nearDeck(e: PointerEvent): boolean {
 }
 
 document.addEventListener("pointermove", (e) => {
-  pointer = { x: e.screenX, y: e.screenY }; // screen coords survive window resizes
+  pointer = { x: e.screenX, y: e.screenY };
   if (dragging) return;
   if (nearDeck(e)) void engage();
   else scheduleLeave();
@@ -311,108 +425,108 @@ function scheduleLeave() {
   }, LEAVE_DELAY);
 }
 
-// ---- tab interactions: hover, click, drag ------------------------------------
+// ---- tab interactions --------------------------------------------------------------
 function bindTab(tab: HTMLElement) {
   tab.addEventListener("pointerenter", () => {
     if (dragging || tab === openTab) return;
     clearTimeout(hoverTimer);
     if (!engaged || !openTab) {
-      void engage(tab); // first hover: open straight away
+      void engage(tab); // first hover opens straight away
       return;
     }
-    // Sweeping across tabs: a tiny dwell avoids flickering through each one.
     hoverTimer = window.setTimeout(() => void engage(tab), SWITCH_DELAY);
   });
   tab.addEventListener("pointerleave", () => clearTimeout(hoverTimer));
   tab.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      void api.openNoteWindow(tab.dataset.id!, tab.getBoundingClientRect().top);
+      void api.openNoteWindow(tab.dataset.id!);
     }
   });
-
-  tab.addEventListener("pointerdown", (down) => {
-    if (down.button !== 0) return;
-    if ((down.target as HTMLElement).closest("a")) down.preventDefault();
-    const startY = down.clientY;
-    const rect = tab.getBoundingClientRect();
-    let slot: HTMLElement | null = null;
-    tab.setPointerCapture(down.pointerId);
-
-    const move = (e: PointerEvent) => {
-      const dy = e.clientY - startY;
-      if (!dragging && Math.abs(dy) < 5) return;
-      if (!dragging) {
-        dragging = true;
-        clearTimeout(hoverTimer);
-        collapse(openTab);
-        tab.classList.add("no-anim");
-        const r = tab.getBoundingClientRect();
-        slot = h("div", { class: "slot" });
-        slot.style.height = `${r.height}px`;
-        tab.replaceWith(slot);
-        root.append(tab);
-        tab.classList.add("floating");
-      }
-      tab.style.top = `${rect.top + dy}px`;
-      const siblings = Array.from(stack.children).filter((c) => c !== slot) as HTMLElement[];
-      const before = siblings.find((s) => {
-        const r = s.getBoundingClientRect();
-        return e.clientY < r.top + r.height / 2;
-      });
-      if (before) stack.insertBefore(slot!, before);
-      else stack.append(slot!);
-    };
-
-    const up = () => {
-      tab.removeEventListener("pointermove", move);
-      tab.removeEventListener("pointerup", up);
-      tab.removeEventListener("pointercancel", up);
-      if (!dragging) {
-        const top = tab.getBoundingClientRect().top;
-        disengage();
-        void api.openNoteWindow(tab.dataset.id!, top);
-        return;
-      }
-      tab.classList.remove("floating", "no-anim");
-      tab.style.top = "";
-      slot!.replaceWith(tab);
-      dragging = false;
-      const ids = Array.from(stack.children).map((c) => (c as HTMLElement).dataset.id!).filter(Boolean);
-      // Optimistic local order so the next render matches what the user sees.
-      ids.forEach((id, i) => {
-        const note = notes.find((x) => x.id === id);
-        if (note) note.order = i - 1e6;
-      });
-      void api.reorderNotes(ids);
-    };
-
-    tab.addEventListener("pointermove", move);
-    tab.addEventListener("pointerup", up);
-    tab.addEventListener("pointercancel", up);
-  });
+  tab.addEventListener("pointerdown", (down) => pressTab(tab, tab, down));
 }
 
-// Reaching for "+" keeps the open card where it is, so nothing shifts under
-// the pointer and the button stays put.
+// Pressing the open card behaves like pressing its tab (click opens, drag reorders).
+card.addEventListener("pointerdown", (down) => {
+  if (openTab) pressTab(openTab, card, down);
+});
+
+/** Click → open the note; drag (5px+) → reorder with a dashed drop slot. */
+function pressTab(tab: HTMLElement, source: HTMLElement, down: PointerEvent) {
+  if (down.button !== 0) return;
+  if ((down.target as HTMLElement).closest("a")) down.preventDefault();
+  const startY = down.clientY;
+  let slot: HTMLElement | null = null;
+  let startTop = 0;
+  source.setPointerCapture(down.pointerId);
+
+  const move = (e: PointerEvent) => {
+    const dy = e.clientY - startY;
+    if (!dragging && Math.abs(dy) < 5) return;
+    if (!dragging) {
+      dragging = true;
+      clearTimeout(hoverTimer);
+      resetCard();
+      startTop = tab.getBoundingClientRect().top;
+      slot = h("div", { class: "slot" });
+      slot.style.height = `${tab.offsetHeight}px`;
+      tab.replaceWith(slot);
+      root.append(tab);
+      tab.classList.add("floating");
+    }
+    tab.style.top = `${startTop + dy}px`;
+    const siblings = Array.from(stack.children).filter((c) => c !== slot) as HTMLElement[];
+    const before = siblings.find((s) => {
+      const r = s.getBoundingClientRect();
+      return e.clientY < r.top + r.height / 2;
+    });
+    if (before) stack.insertBefore(slot!, before);
+    else stack.append(slot!);
+  };
+
+  const up = () => {
+    source.removeEventListener("pointermove", move);
+    source.removeEventListener("pointerup", up);
+    source.removeEventListener("pointercancel", up);
+    if (!dragging) {
+      disengage();
+      void api.openNoteWindow(tab.dataset.id!);
+      return;
+    }
+    tab.classList.remove("floating");
+    tab.style.top = "";
+    slot!.replaceWith(tab);
+    dragging = false;
+    const ids = Array.from(stack.children).map((c) => (c as HTMLElement).dataset.id!).filter(Boolean);
+    ids.forEach((id, i) => {
+      const note = notes.find((x) => x.id === id);
+      if (note) note.order = i - 1e6; // optimistic local order
+    });
+    void api.reorderNotes(ids);
+  };
+
+  source.addEventListener("pointermove", move);
+  source.addEventListener("pointerup", up);
+  source.addEventListener("pointercancel", up);
+}
+
+// ---- "+" -------------------------------------------------------------------------
 plus.addEventListener("pointerenter", () => clearTimeout(hoverTimer));
 plus.addEventListener("pointerdown", () => {
-  // restart the ripple even on rapid clicks
   plus.classList.remove("pressed");
   void plus.offsetWidth;
   plus.classList.add("pressed");
 });
 plus.addEventListener("animationend", () => plus.classList.remove("pressed"));
 plus.addEventListener("click", async () => {
-  // let the press feedback play before the deck tucks away
-  await new Promise((r) => setTimeout(r, 140));
+  await new Promise((r) => setTimeout(r, 140)); // let the press feedback play
   disengage();
   const n = await api.createNote();
-  await api.openNoteWindow(n.id, plus.getBoundingClientRect().top - 120);
+  await api.openNoteWindow(n.id);
 });
 more.addEventListener("click", () => void api.openManager("deck"));
 
-// ---- undo toast --------------------------------------------------------------
+// ---- undo toast ------------------------------------------------------------------
 function showToast(title: string, count: number, token: number) {
   hideToast(false);
   const label = count > 1 ? `Deleted ${count} notes` : `Deleted “${title}”`;
@@ -426,6 +540,7 @@ function showToast(title: string, count: number, token: number) {
         await api.undoDelete(token).catch(() => {});
       },
     }, "Undo"),
+    h("button", { class: "toast-x", title: "Dismiss", "aria-label": "Dismiss", onclick: () => hideToast() }, icon("close", 12)),
   );
   root.append(toastEl);
   void fit();
@@ -440,7 +555,7 @@ function hideToast(refit = true) {
   if (refit) void fit();
 }
 
-// ---- data ----------------------------------------------------------------------
+// ---- data ----------------------------------------------------------------------------
 async function reload() {
   notes = await api.listNotes();
   render();
@@ -451,8 +566,7 @@ void on("notes:deleted", (p) => showToast(p.title, p.count, p.token));
 void on("notes:restored", () => hideToast());
 void on("deck:note-windows", (ids) => {
   openWindows = new Set(ids);
-  stack.querySelectorAll<HTMLElement>(".tab").forEach((t) => t.classList.toggle("active", openWindows.has(t.dataset.id!)));
-  void fit();
+  tabs().forEach((t) => t.classList.toggle("active", openWindows.has(t.dataset.id!)));
 });
 void on("settings:changed", (s) => {
   setTheme(s.theme);

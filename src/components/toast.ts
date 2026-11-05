@@ -1,5 +1,6 @@
 // Toasts with an optional action (used for "Note deleted · Undo").
 import { h } from "../lib/dom";
+import { icon } from "../lib/icons";
 
 let host: HTMLElement | null = null;
 
@@ -33,6 +34,7 @@ export function toast(
           close();
         },
       }, opts.action.label),
+    h("button", { class: "toast-x", title: "Dismiss", "aria-label": "Dismiss", onclick: () => close() }, icon("close", 12)),
     progress,
   );
   host.append(el);

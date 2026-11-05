@@ -74,7 +74,9 @@ body {
   touch-action: none;
   transition: width var(--deck-anim) var(--deck-ease), height var(--deck-anim) var(--deck-ease),
     margin var(--deck-anim) var(--deck-ease), border-radius var(--deck-anim) var(--deck-ease),
-    transform var(--deck-anim) var(--deck-ease), box-shadow 240ms var(--ease-in-out);
+    transform var(--deck-anim) var(--deck-ease), translate var(--deck-anim) var(--deck-ease),
+    box-shadow 240ms var(--ease-in-out);
+  translate: 0 var(--shift, 0px); /* pushed aside by the open card */
 }
 .deck[data-edge="right"] .tab {
   flex-direction: row; /* strip on the outer side, note revealed toward the edge */
@@ -155,64 +157,128 @@ body {
   right: 4px;
 }
 
-/* ---- Open tab: the note preview -------------------------------------------- */
-.stack.has-open .tab:not(.open) {
-  margin-block: -7px;
+/* ---- The note card ----------------------------------------------------------
+   One floating card, revealed out of the hovered tab with clip-path and
+   moved with transforms only (no layout work per frame), so it stays smooth.
+   Geometry comes from main.ts: --card-y, --card-h, --tab-mid. */
+.card-wrap {
+  position: absolute;
+  top: 0;
+  z-index: 5;
+  transform: translateY(var(--card-y, 0px));
+  transition: transform var(--deck-anim) var(--deck-ease);
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.3)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14));
+  visibility: hidden;
+  pointer-events: none;
 }
-.tab.open {
-  --w: var(--deck-peek-w);
-  --lean: 0px;
-  --tilt: 0deg;
-  z-index: 3;
-  height: var(--open-h);
-  margin-block: 8px;
+.card-wrap:has(.card.visible) {
+  visibility: visible;
 }
-.deck[data-edge="right"] .tab.open {
-  border-radius: 14px 0 0 14px;
-  box-shadow: -6px 8px 26px rgba(0, 0, 0, 0.32), -1px 1px 4px rgba(0, 0, 0, 0.12);
+.card-wrap:has(.card.open) {
+  pointer-events: auto;
 }
-.deck[data-edge="left"] .tab.open {
-  border-radius: 0 14px 14px 0;
-  box-shadow: 6px 8px 26px rgba(0, 0, 0, 0.32), 1px 1px 4px rgba(0, 0, 0, 0.12);
+.deck[data-edge="right"] .card-wrap {
+  right: calc(var(--deck-overhang) * -1);
 }
-.tab.open .tab-strip {
-  height: var(--open-h);
-  background: rgba(0, 0, 0, 0.05);
-}
-.tab.open::after {
-  opacity: 0;
+.deck[data-edge="left"] .card-wrap {
+  left: calc(var(--deck-overhang) * -1);
 }
 
-.tab-content {
-  flex: none;
+.card {
+  position: relative;
+  width: calc(var(--deck-peek-w) + var(--deck-overhang));
+  height: var(--card-h, 200px);
+  overflow: hidden;
+  background: var(--note-bg);
+  color: var(--note-ink);
+  cursor: pointer;
+  transition: clip-path var(--deck-anim) var(--deck-ease), height var(--deck-anim) var(--deck-ease),
+    background 240ms var(--ease-in-out);
+  will-change: clip-path;
+}
+.deck[data-edge="right"] .card.open {
+  clip-path: inset(0px 0px 0px 0px round 14px 0 0 14px);
+}
+.deck[data-edge="left"] .card.open {
+  clip-path: inset(0px 0px 0px 0px round 0 14px 14px 0);
+}
+/* Set the closed (tab-shaped) state without animating. */
+.card.snap,
+.card.snap * ,
+.deck.instant .card-wrap {
+  transition: none !important;
+}
+
+/* Title strip: sits where the tab is when closed, slides to the card's outer
+   side as it opens. */
+.card-strip {
+  position: absolute;
+  top: 0;
+  width: var(--deck-tab-w);
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  transition: transform var(--deck-anim) var(--deck-ease);
+}
+.card-strip .tab-label {
+  max-height: 170px;
+  transition: translate var(--deck-anim) var(--deck-ease);
+}
+.card:not(.open) .card-strip .tab-label {
+  translate: 0 var(--tab-mid, 0px);
+}
+.deck[data-edge="right"] .card-strip {
+  left: 0;
+}
+.deck[data-edge="right"] .card:not(.open) .card-strip {
+  transform: translateX(calc(var(--deck-peek-w) - var(--deck-tab-w)));
+}
+.deck[data-edge="left"] .card-strip {
+  right: 0;
+}
+.deck[data-edge="left"] .card:not(.open) .card-strip {
+  transform: translateX(calc((var(--deck-peek-w) - var(--deck-tab-w)) * -1));
+}
+
+.card-content {
+  position: absolute;
+  top: 0;
   width: calc(var(--deck-peek-w) - var(--deck-tab-w));
-  max-height: var(--deck-peek-max-h);
   display: flex;
   flex-direction: column;
   padding: var(--space-4) var(--space-4) var(--space-3) var(--space-3);
 }
-.deck[data-edge="left"] .tab-content {
+.deck[data-edge="right"] .card-content {
+  left: var(--deck-tab-w);
+}
+.deck[data-edge="left"] .card-content {
+  left: var(--deck-overhang);
   padding: var(--space-4) var(--space-3) var(--space-3) var(--space-4);
 }
 
-/* Content arrives in a short stagger (title → body → footer) and leaves
-   quickly, so switching tabs reads as one fluid motion. */
-.tab-content > * {
+/* Content arrives in a short stagger (title → body → footer), leaves fast. */
+.card-content > * {
   opacity: 0;
   transform: translateX(14px);
   transition: opacity 120ms var(--ease-in-out), transform 120ms var(--ease-in-out);
 }
-.deck[data-edge="left"] .tab-content > * {
+.deck[data-edge="left"] .card-content > * {
   transform: translateX(-14px);
 }
-.tab.open .tab-content > * {
+.card.open .card-content > * {
   opacity: 1;
   transform: none;
   transition: opacity 260ms var(--ease-in-out), transform var(--deck-anim) var(--deck-ease);
 }
-.tab.open .tab-content > :nth-child(1) { transition-delay: 90ms; }
-.tab.open .tab-content > :nth-child(2) { transition-delay: 140ms; }
-.tab.open .tab-content > :nth-child(3) { transition-delay: 190ms; }
+.card.open .card-content > :nth-child(1) { transition-delay: 90ms; }
+.card.open .card-content > :nth-child(2) { transition-delay: 140ms; }
+.card.open .card-content > :nth-child(3) { transition-delay: 190ms; }
+
+/* The tab under the open card hides (the card stands in for it). */
+.tab.under {
+  opacity: 0;
+}
 
 .peek-title {
   font-family: var(--font-ui);
@@ -259,8 +325,7 @@ body {
 .deck[data-edge="left"].compact .column {
   left: var(--deck-pill-inset);
 }
-.deck.compact .tab-strip,
-.deck.compact .tab-content {
+.deck.compact .tab-strip {
   opacity: 0;
 }
 .deck.compact .tab.active {
@@ -317,8 +382,10 @@ body {
   color: #2b2a33;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   cursor: pointer;
+  translate: 0 var(--shift, 0px);
   transition: transform 220ms var(--deck-ease), background 180ms, color 180ms, box-shadow 220ms,
-    opacity 200ms, height var(--deck-anim) var(--deck-ease), margin var(--deck-anim) var(--deck-ease);
+    opacity 200ms, height var(--deck-anim) var(--deck-ease), margin var(--deck-anim) var(--deck-ease),
+    translate var(--deck-anim) var(--deck-ease);
 }
 :root[data-theme="dark"] .plus {
   background: #2c2c34;
@@ -390,6 +457,8 @@ body {
   }
 }
 .more {
+  translate: 0 var(--shift, 0px);
+  transition: translate var(--deck-anim) var(--deck-ease);
   margin-top: 8px;
   padding: 2px 6px;
   border-radius: var(--radius-pill);
@@ -446,6 +515,19 @@ body {
   color: #fff;
   font-weight: var(--weight-semibold);
 }
+.deck-toast .toast-x {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  padding: 0;
+  background: transparent;
+  color: rgba(242, 242, 246, 0.7);
+  font-weight: normal;
+}
+.deck-toast .toast-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -457,7 +539,7 @@ body {
   :root {
     --deck-anim: 1ms;
   }
-  .tab-content > * {
+  .card-content > * {
     transition-delay: 0ms !important;
   }
 }
