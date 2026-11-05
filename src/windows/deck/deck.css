@@ -75,7 +75,7 @@ body {
   transition: width var(--deck-anim) var(--deck-ease), height var(--deck-anim) var(--deck-ease),
     margin var(--deck-anim) var(--deck-ease), border-radius var(--deck-anim) var(--deck-ease),
     transform var(--deck-anim) var(--deck-ease), translate var(--deck-anim) var(--deck-ease),
-    box-shadow 240ms var(--ease-in-out);
+    box-shadow 240ms var(--ease-in-out), opacity 180ms var(--ease-out);
   translate: 0 var(--shift, 0px); /* pushed aside by the open card */
 }
 .deck[data-edge="right"] .tab {
@@ -166,13 +166,28 @@ body {
   top: 0;
   z-index: 5;
   transform: translateY(var(--card-y, 0px));
-  transition: transform var(--deck-anim) var(--deck-ease);
+  transition: transform var(--deck-anim) var(--deck-ease), opacity 120ms var(--ease-out),
+    translate 120ms var(--ease-out);
   filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.3)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.14));
   visibility: hidden;
   pointer-events: none;
 }
 .card-wrap:has(.card.visible) {
   visibility: visible;
+}
+/* Closing: a short fade + slide into the screen edge. Keep the duration in
+   sync with CLOSE_MS in main.ts. */
+.card-wrap.leaving {
+  opacity: 0;
+  pointer-events: none !important;
+  transition: transform var(--deck-anim) var(--deck-ease), opacity 200ms cubic-bezier(0.4, 0, 1, 1),
+    translate 200ms cubic-bezier(0.4, 0, 1, 1);
+}
+.deck[data-edge="right"] .card-wrap.leaving {
+  translate: 18px 0;
+}
+.deck[data-edge="left"] .card-wrap.leaving {
+  translate: -18px 0;
 }
 .card-wrap:has(.card.open) {
   pointer-events: auto;
@@ -275,9 +290,12 @@ body {
 .card.open .card-content > :nth-child(2) { transition-delay: 140ms; }
 .card.open .card-content > :nth-child(3) { transition-delay: 190ms; }
 
-/* The tab under the open card hides (the card stands in for it). */
+/* The tab under the open card hides (the card stands in for it) and fades
+   back in as the card leaves. */
 .tab.under {
   opacity: 0;
+  transition-duration: var(--deck-anim), var(--deck-anim), var(--deck-anim), var(--deck-anim),
+    var(--deck-anim), var(--deck-anim), 240ms, 0ms;
 }
 
 .peek-title {

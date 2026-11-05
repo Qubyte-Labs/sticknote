@@ -23,6 +23,7 @@ const SWITCH_DELAY = 50; // tiny dwell when sweeping across tabs (prevents flick
 const LEAVE_DELAY = 650; // how long the deck waits before turning back into pills
 const SLACK = 28; // px of forgiveness around the deck before it counts as "left"
 const ANIM_MS = 380; // must match --deck-anim in deck.css
+const CLOSE_MS = 200; // must match .card-wrap.leaving in deck.css
 const GAP = 8; // space between the open card and the tabs pushed aside
 const TOAST_MS = 10_000;
 const SHADOW_ROOM = 22;
@@ -248,6 +249,7 @@ function openCard(tab: HTMLElement, animate = true) {
   if (!n || tab === openTab) return;
   clearTimeout(hideTimer);
   clearTimeout(shrinkTimer);
+  cardWrap.classList.remove("leaving"); // reopening mid-close just continues
   const switching = openTab !== null && card.classList.contains("open");
   openTab?.classList.remove("under");
   openTab = tab;
@@ -306,33 +308,32 @@ function place(tab: HTMLElement) {
   return { y, h: hgt, tabTop, tabH };
 }
 
-/** Fold the card back into its tab. */
+/** Close: the card fades and slides into the edge while its tab fades back
+ *  in and the neighbours return. Quick and clean, no folding. */
 function closeCard() {
   const tab = openTab;
   if (!tab) return;
   openTab = null;
   pushNeighbours(null);
-  if (tab.isConnected) {
-    const { top, height } = tabBox(tab);
-    const y = parseFloat(root.style.getPropertyValue("--card-y")) || 0;
-    const hh = parseFloat(root.style.getPropertyValue("--card-h")) || 0;
-    card.style.clipPath = tabClip(top, height, y, hh);
-  }
-  card.classList.remove("open");
+  tab.classList.remove("under");
+  cardWrap.classList.add("leaving");
   card.setAttribute("aria-hidden", "true");
   clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
     if (openTab) return;
-    card.classList.remove("visible");
+    card.classList.add("snap");
+    card.classList.remove("open", "visible");
+    cardWrap.classList.remove("leaving");
     card.style.clipPath = "";
-    tab.classList.remove("under");
-  }, ANIM_MS);
+    requestAnimationFrame(() => card.classList.remove("snap"));
+  }, CLOSE_MS);
 }
 
 /** Hide the card immediately (re-render, drag start). */
 function resetCard() {
   clearTimeout(hideTimer);
   openTab = null;
+  cardWrap.classList.remove("leaving");
   card.classList.add("snap");
   card.classList.remove("open", "visible");
   card.style.clipPath = "";
@@ -374,12 +375,17 @@ function disengage() {
   leaveTimer = undefined;
   if (!engaged) return;
   engaged = false;
+  const hadCard = openTab !== null;
   closeCard();
-  setCompact(true);
+  // Card first, then the tabs turn back into pills, then the window shrinks.
   clearTimeout(shrinkTimer);
   shrinkTimer = window.setTimeout(() => {
-    if (!engaged) void fit();
-  }, ANIM_MS);
+    if (engaged) return;
+    setCompact(true);
+    shrinkTimer = window.setTimeout(() => {
+      if (!engaged) void fit();
+    }, ANIM_MS);
+  }, hadCard ? CLOSE_MS : 0);
 }
 
 function tabAtPointer(): HTMLElement | null {
