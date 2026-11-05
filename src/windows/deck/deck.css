@@ -303,7 +303,10 @@ body {
 }
 
 /* ---- "+" and overflow chip ------------------------------------------------- */
+/* "+": hover fills it with the accent colour, spins the plus and shows a
+   "New note" label; pressing squeezes it and sends out a ripple. */
 .plus {
+  position: relative;
   display: grid;
   place-items: center;
   width: 26px;
@@ -313,15 +316,78 @@ body {
   background: #ffffff;
   color: #2b2a33;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: transform var(--dur-fast) var(--ease-out), opacity 200ms, height var(--deck-anim) var(--deck-ease),
-    margin var(--deck-anim) var(--deck-ease);
-}
-.plus:hover {
-  transform: scale(1.1);
+  cursor: pointer;
+  transition: transform 220ms var(--deck-ease), background 180ms, color 180ms, box-shadow 220ms,
+    opacity 200ms, height var(--deck-anim) var(--deck-ease), margin var(--deck-anim) var(--deck-ease);
 }
 :root[data-theme="dark"] .plus {
   background: #2c2c34;
   color: #f2f2f6;
+}
+.plus .icon {
+  stroke-width: 2.2;
+  transition: transform 300ms var(--deck-ease);
+}
+.plus:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 4px 14px rgba(90, 70, 220, 0.5), 0 0 0 4px rgba(132, 115, 245, 0.25);
+}
+.plus:hover .icon {
+  transform: rotate(90deg);
+}
+.plus:active {
+  transform: scale(0.9);
+  transition-duration: 80ms;
+}
+
+/* Label that slides out beside the button on hover. */
+.plus::after {
+  content: "New note";
+  position: absolute;
+  top: 50%;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: #26252d;
+  color: #f2f2f6;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-in-out), transform 260ms var(--deck-ease);
+}
+.deck[data-edge="right"] .plus::after {
+  right: calc(100% + 10px);
+  transform: translate(8px, -50%) scale(0.95);
+}
+.deck[data-edge="left"] .plus::after {
+  left: calc(100% + 10px);
+  transform: translate(-8px, -50%) scale(0.95);
+}
+.plus:hover::after {
+  opacity: 1;
+  transform: translate(0, -50%) scale(1);
+}
+
+/* Click ripple (class added by main.ts on press). */
+.plus.pressed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: plus-ripple 420ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+@keyframes plus-ripple {
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 .more {
   margin-top: 8px;

@@ -396,7 +396,16 @@ function bindTab(tab: HTMLElement) {
 // Reaching for "+" keeps the open card where it is, so nothing shifts under
 // the pointer and the button stays put.
 plus.addEventListener("pointerenter", () => clearTimeout(hoverTimer));
+plus.addEventListener("pointerdown", () => {
+  // restart the ripple even on rapid clicks
+  plus.classList.remove("pressed");
+  void plus.offsetWidth;
+  plus.classList.add("pressed");
+});
+plus.addEventListener("animationend", () => plus.classList.remove("pressed"));
 plus.addEventListener("click", async () => {
+  // let the press feedback play before the deck tucks away
+  await new Promise((r) => setTimeout(r, 140));
   disengage();
   const n = await api.createNote();
   await api.openNoteWindow(n.id, plus.getBoundingClientRect().top - 120);
