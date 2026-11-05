@@ -1,8 +1,8 @@
 //! One floating window per note. Label = `note-<uuid>`, so the webview knows
 //! which note it shows without any URL parameters.
 
-use super::{deck, point_on_screen, primary_work_area};
-use crate::models::{Bounds, Edge};
+use super::primary_work_area;
+use crate::models::Bounds;
 use crate::platform;
 use crate::state::{events, AppState};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Webview
 pub const PREFIX: &str = "note-";
 const DEFAULT_W: f64 = 506.0; // 490px paper + 8px transparent margin each side
 const DEFAULT_H: f64 = 456.0;
-const GAP: f64 = 12.0;
+const CASCADE: f64 = 28.0; // offset for each additional open note
 
 pub fn label(id: &str) -> String {
     format!("{PREFIX}{id}")
@@ -27,9 +27,29 @@ fn broadcast(app: &AppHandle) {
     let _ = app.emit(events::NOTE_WINDOWS, open_ids(app));
 }
 
-/// Open (or focus) the window for `id`. `anchor_y` is the logical y offset of
-/// the deck tab that was clicked, so the window opens beside it.
-pub fn open(app: &AppHandle, id: &str, anchor_y: Option<f64>) -> tauri::Result<()> {
+/// Where a note window opens: centred on the primary screen's work area,
+/// keeping the size the user last gave this note. Each additional open note
+/// is offset a little (cascade) so they never stack exactly on top of each
+/// other. Physical pixels.
+fn centered_rect(app: &AppHandle, saved: Option<Bounds>) -> (i32, i32, u32, u32) {
+    let wa = primary_work_area(app);
+    let s = wa.scale;
+    let (pw, ph) = match saved {
+        Some(b) => (b.w, b.h),
+        None => ((DEFAULT_W * s) as u32, (DEFAULT_H * s) as u32),
+    };
+    let pw = pw.min(wa.w);
+    let ph = ph.min(wa.h);
+    let step = (CASCADE * s) as i32 * (open_ids(app).len() as i32 % 6);
+    let x = wa.x + (wa.w as i32 - pw as i32) / 2 + step;
+    let y = wa.y + (wa.h as i32 - ph as i32) / 2 + step;
+    let x = x.clamp(wa.x, wa.x + wa.w as i32 - pw as i32);
+    let y = y.clamp(wa.y, wa.y + wa.h as i32 - ph as i32);
+    (x, y, pw, ph)
+}
+
+/// Open (or focus) the window for `id`, centred on screen.
+pub fn open(app: &AppHandle, id: &str, _anchor_y: Option<f64>) -> tauri::Result<()> {
     let label = label(id);
     if let Some(w) = app.get_webview_window(&label) {
         let _ = w.unminimize();
@@ -40,35 +60,12 @@ pub fn open(app: &AppHandle, id: &str, anchor_y: Option<f64>) -> tauri::Result<(
         return Ok(());
     }
 
-    let (saved, edge) = {
+    let saved = {
         let state = app.state::<AppState>();
         let g = state.inner.lock();
-        let saved = g.notes.iter().find(|n| n.id == id).and_then(|n| n.bounds);
-        (saved, g.settings.edge)
+        g.notes.iter().find(|n| n.id == id).and_then(|n| n.bounds)
     };
-
-    let wa = primary_work_area(app);
-    let s = wa.scale;
-    let rect = match saved.filter(|b| point_on_screen(app, PhysicalPosition::new(b.x + 40, b.y + 20))) {
-        Some(b) => (b.x, b.y, b.w, b.h),
-        None => {
-            let pw = (DEFAULT_W * s) as u32;
-            let ph = (DEFAULT_H * s) as u32;
-            let (dx, dy, dw, _) = deck::bounds(app).unwrap_or((wa.x + wa.w as i32, wa.y, 0, 0));
-            let gap = (GAP * s) as i32;
-            let tab = (56.0 * s) as i32; // collapsed deck width
-            let x = match edge {
-                Edge::Right => (dx + dw as i32 - tab - gap - pw as i32).max(wa.x),
-                Edge::Left => (dx + tab + gap).min(wa.x + wa.w as i32 - pw as i32),
-            };
-            let y = match anchor_y {
-                Some(a) => dy + (a * s) as i32 - (40.0 * s) as i32,
-                None => wa.y + (wa.h as i32 - ph as i32) / 3 + (open_ids(app).len() as i32 % 6) * (28.0 * s) as i32,
-            };
-            let y = y.clamp(wa.y, wa.y + wa.h as i32 - ph as i32);
-            (x, y, pw, ph)
-        }
-    };
+    let rect = centered_rect(app, saved);
 
     let w = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("note.html".into()))
         .title("Peekin note")

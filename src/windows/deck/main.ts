@@ -18,9 +18,9 @@ import { icon } from "../../lib/icons";
 import { agoLong } from "../../lib/time";
 import type { Edge, Note } from "../../lib/types";
 
-const HOVER_DELAY = 110; // dwell before the first preview (avoids fly-by flashes)
-const SWITCH_DELAY = 70; // dwell when moving between tabs while previewing
-const LEAVE_DELAY = 240; // grace period when the pointer briefly leaves
+const SWITCH_DELAY = 50; // tiny dwell when sweeping across tabs (prevents flicker)
+const LEAVE_DELAY = 650; // how long the deck waits before turning back into pills
+const SLACK = 28; // px of forgiveness around the deck before it counts as "left"
 const ANIM_MS = 380; // must match --deck-anim in deck.css
 const TOAST_MS = 10_000;
 const SHADOW_ROOM = 22;
@@ -40,7 +40,7 @@ let openTab: HTMLElement | null = null; // the tab currently showing its preview
 let tabHs: number[] = []; // heights of the tabs currently shown
 let hasMore = false;
 let pointer = { x: -1, y: -1 }; // last pointer position, in screen coordinates
-let engagedAt = 0; // when the pills last turned into tabs
+let engaging: Promise<void> = Promise.resolve();
 let hoverTimer: number | undefined;
 let leaveTimer: number | undefined;
 let shrinkTimer: number | undefined;
@@ -235,27 +235,34 @@ function collapse(tab: HTMLElement | null) {
 }
 
 // ---- engage / disengage (pointer enters / leaves the deck) -------------------
-async function engage() {
-  if (engaged) return;
-  engaged = true;
-  engagedAt = performance.now();
-  clearTimeout(shrinkTimer);
-  await fit(); // grow the (transparent) window first…
-  if (!engaged) return;
-  setCompact(false); // …then let the pills animate into tabs
-  // The tabs grew under a pointer that may not move again: once they settle,
-  // preview whichever tab is under it.
-  window.setTimeout(() => {
-    if (!engaged || openTab || dragging) return;
-    const tab = document
-      .elementFromPoint(pointer.x - window.screenX, pointer.y - window.screenY)
-      ?.closest<HTMLElement>(".tab");
-    if (tab && stack.contains(tab)) expand(tab);
-  }, ANIM_MS + 20);
+/** Pointer reached the deck: widen the window, turn pills into tabs and, if
+ *  the pointer is on a tab, open it in the same motion. */
+function engage(target?: HTMLElement): Promise<void> {
+  clearTimeout(leaveTimer);
+  leaveTimer = undefined;
+  if (!engaged) {
+    engaged = true;
+    clearTimeout(shrinkTimer);
+    engaging = fit().then(() => {
+      if (!engaged) return;
+      setCompact(false);
+      // The tabs grow under a pointer that may not move again: once they
+      // settle, open whichever tab is under it.
+      window.setTimeout(() => {
+        if (!engaged || openTab || dragging) return;
+        const tab = tabAtPointer();
+        if (tab) expand(tab);
+      }, ANIM_MS + 20);
+    });
+  }
+  if (target) void engaging.then(() => engaged && !dragging && expand(target));
+  return engaging;
 }
 
 function disengage() {
   clearTimeout(hoverTimer);
+  clearTimeout(leaveTimer);
+  leaveTimer = undefined;
   if (!engaged) return;
   engaged = false;
   collapse(openTab);
@@ -267,17 +274,32 @@ function disengage() {
   }, ANIM_MS);
 }
 
+function tabAtPointer(): HTMLElement | null {
+  const el = document.elementFromPoint(pointer.x - window.screenX, pointer.y - window.screenY);
+  const tab = el?.closest<HTMLElement>(".tab") ?? null;
+  return tab && stack.contains(tab) ? tab : null;
+}
+
 // ---- hover tracking (event driven, no polling) --------------------------------
-const INTERACTIVE = ".tab, .plus, .more, .deck-toast, .column";
+/** Is the pointer on (or near) the deck? Uses the deck's geometry with some
+ *  slack instead of element hit-testing, so the small gaps between tabs, the
+ *  "+" button and an open card never count as leaving. */
+function nearDeck(e: PointerEvent): boolean {
+  if ((e.target as HTMLElement).closest?.(".deck-toast")) return true;
+  const r = column.getBoundingClientRect();
+  if (e.clientY < r.top - SLACK || e.clientY > r.bottom + SLACK) return false;
+  const reach = engaged
+    ? (openTab ? cssNum("--deck-peek-w") : cssNum("--deck-tab-w") + 5) + SLACK
+    : cssNum("--deck-pill-w") + cssNum("--deck-pill-inset") * 2 + SLACK;
+  const fromEdge = edge === "right" ? window.innerWidth - e.clientX : e.clientX;
+  return fromEdge <= reach;
+}
 
 document.addEventListener("pointermove", (e) => {
   pointer = { x: e.screenX, y: e.screenY }; // screen coords survive window resizes
   if (dragging) return;
-  if ((e.target as HTMLElement).closest(INTERACTIVE)) {
-    clearTimeout(leaveTimer);
-    leaveTimer = undefined;
-    void engage();
-  } else scheduleLeave();
+  if (nearDeck(e)) void engage();
+  else scheduleLeave();
 });
 document.documentElement.addEventListener("pointerleave", () => scheduleLeave());
 
@@ -290,21 +312,16 @@ function scheduleLeave() {
 }
 
 // ---- tab interactions: hover, click, drag ------------------------------------
-/** Right after the pills turn into tabs, wait for that to finish before a
- *  preview opens, so the two animations never fight. */
-function firstHoverDelay() {
-  if (!engaged) return ANIM_MS;
-  return Math.max(HOVER_DELAY, ANIM_MS - (performance.now() - engagedAt));
-}
 function bindTab(tab: HTMLElement) {
   tab.addEventListener("pointerenter", () => {
     if (dragging || tab === openTab) return;
     clearTimeout(hoverTimer);
-    hoverTimer = window.setTimeout(() => {
-      void engage().then(() => {
-        if (engaged) expand(tab);
-      });
-    }, openTab ? SWITCH_DELAY : firstHoverDelay());
+    if (!engaged || !openTab) {
+      void engage(tab); // first hover: open straight away
+      return;
+    }
+    // Sweeping across tabs: a tiny dwell avoids flickering through each one.
+    hoverTimer = window.setTimeout(() => void engage(tab), SWITCH_DELAY);
   });
   tab.addEventListener("pointerleave", () => clearTimeout(hoverTimer));
   tab.addEventListener("keydown", (e) => {
@@ -376,10 +393,9 @@ function bindTab(tab: HTMLElement) {
   });
 }
 
-plus.addEventListener("pointerenter", () => {
-  clearTimeout(hoverTimer);
-  collapse(openTab);
-});
+// Reaching for "+" keeps the open card where it is, so nothing shifts under
+// the pointer and the button stays put.
+plus.addEventListener("pointerenter", () => clearTimeout(hoverTimer));
 plus.addEventListener("click", async () => {
   disengage();
   const n = await api.createNote();

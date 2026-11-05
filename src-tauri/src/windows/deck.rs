@@ -82,11 +82,3 @@ pub fn refresh_visibility(app: &AppHandle) {
         let _ = w.hide();
     }
 }
-
-/// Physical rect of the deck (for placing note windows beside it).
-pub fn bounds(app: &AppHandle) -> Option<(i32, i32, u32, u32)> {
-    let w = app.get_webview_window(LABEL)?;
-    let p = w.outer_position().ok()?;
-    let s = w.outer_size().ok()?;
-    Some((p.x, p.y, s.width, s.height))
-}
